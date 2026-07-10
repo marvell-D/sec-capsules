@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 
+from sec_capsules.core.artifacts import ArtifactStore
 from sec_capsules.core.exporters import export_markdown
 from sec_capsules.core.recipe import run_recipe
 from sec_capsules.core.registry import CapsuleRegistry, capsule_to_public_dict
@@ -40,6 +41,11 @@ def build_parser() -> argparse.ArgumentParser:
     search_p.add_argument("--risk-level")
     search_p.set_defaults(func=cmd_search)
 
+    doctor_p = sub.add_parser("doctor", help="Check required external tools")
+    doctor_p.add_argument("capsule_id", nargs="?")
+    doctor_p.add_argument("--require", action="store_true", help="Exit non-zero when a required tool is unavailable")
+    doctor_p.set_defaults(func=cmd_doctor)
+
     plan_p = sub.add_parser("plan", help="Create a safe command plan")
     plan_p.add_argument("capsule_id")
     plan_p.add_argument("--target", required=True)
@@ -53,9 +59,12 @@ def build_parser() -> argparse.ArgumentParser:
     run_p.add_argument("--scope", required=True)
     run_p.add_argument("--profile", default="safe")
     run_p.add_argument("--fixture")
+    run_p.add_argument("--approval-file", help="Operator approval record required by some profiles")
     run_p.add_argument("--execute", action="store_true", help="Actually execute the external tool")
     run_p.add_argument("--budget", type=int, default=800)
-    run_p.add_argument("--runs-dir", default="runs", help="Directory for run artifacts")
+    run_p.add_argument("--timeout", type=int, default=120)
+    run_p.add_argument("--max-output-bytes", type=int)
+    run_p.add_argument("--runs-dir", default=argparse.SUPPRESS, help="Directory for run artifacts")
     run_p.set_defaults(func=cmd_run)
 
     recipe_p = sub.add_parser("recipe", help="Recipe commands")
@@ -67,26 +76,32 @@ def build_parser() -> argparse.ArgumentParser:
     recipe_run_p.add_argument("--profile", default="safe")
     recipe_run_p.add_argument("--execute", action="store_true")
     recipe_run_p.add_argument("--fixture", action="append", default=[], help="capsule=path")
+    recipe_run_p.add_argument("--approval-file")
     recipe_run_p.add_argument("--budget", type=int, default=800)
-    recipe_run_p.add_argument("--runs-dir", default="runs", help="Directory for run artifacts")
+    recipe_run_p.add_argument("--timeout", type=int, default=120)
+    recipe_run_p.add_argument("--runs-dir", default=argparse.SUPPRESS, help="Directory for run artifacts")
     recipe_run_p.set_defaults(func=cmd_recipe_run)
 
     observe_p = sub.add_parser("observe", help="Print an existing run observation")
     observe_p.add_argument("run_id")
-    observe_p.add_argument("--runs-dir", default="runs", help="Directory for run artifacts")
+    observe_p.add_argument("--runs-dir", default=argparse.SUPPRESS, help="Directory for run artifacts")
     observe_p.set_defaults(func=cmd_observe)
 
     artifact_p = sub.add_parser("artifact", help="Artifact commands")
     artifact_sub = artifact_p.add_subparsers(dest="artifact_command", required=True)
-    artifact_get_p = artifact_sub.add_parser("get", help="Print an artifact file or line")
-    artifact_get_p.add_argument("path_or_ref")
-    artifact_get_p.add_argument("--runs-dir", default="runs", help="Directory for run artifacts")
+    artifact_get_p = artifact_sub.add_parser("get", help="Print a bounded artifact snippet")
+    artifact_get_p.add_argument("artifact_ref")
+    artifact_get_p.add_argument("--start-line", type=int)
+    artifact_get_p.add_argument("--end-line", type=int)
+    artifact_get_p.add_argument("--max-lines", type=int, default=200)
+    artifact_get_p.add_argument("--max-chars", type=int, default=16_000)
+    artifact_get_p.add_argument("--runs-dir", default=argparse.SUPPRESS, help="Directory for run artifacts")
     artifact_get_p.set_defaults(func=cmd_artifact_get)
 
     export_p = sub.add_parser("export", help="Export a run")
     export_p.add_argument("run_id")
     export_p.add_argument("--format", choices=["markdown"], default="markdown")
-    export_p.add_argument("--runs-dir", default="runs", help="Directory for run artifacts")
+    export_p.add_argument("--runs-dir", default=argparse.SUPPRESS, help="Directory for run artifacts")
     export_p.set_defaults(func=cmd_export)
     return parser
 
@@ -115,6 +130,15 @@ def cmd_search(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_doctor(args: argparse.Namespace) -> int:
+    runner = CapsuleRunner(runs_dir=args.runs_dir)
+    reports = runner.doctor(args.capsule_id)
+    print_json(reports)
+    if args.require and any(not report["health"]["available"] for report in reports):
+        return 1
+    return 0
+
+
 def cmd_plan(args: argparse.Namespace) -> int:
     runner = CapsuleRunner(runs_dir=args.runs_dir)
     print_json(runner.plan(args.capsule_id, target=args.target, profile=args.profile))
@@ -130,7 +154,10 @@ def cmd_run(args: argparse.Namespace) -> int:
         profile=args.profile,
         execute=args.execute,
         fixture=args.fixture,
+        approval_file=args.approval_file,
         token_budget=args.budget,
+        timeout=args.timeout,
+        max_output_bytes=args.max_output_bytes,
     )
     print_json(
         {
@@ -140,7 +167,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             "dry_run": result.dry_run,
         }
     )
-    return 0
+    return 0 if result.status in {"dry_run", "replayed", "succeeded"} else 1
 
 
 def cmd_recipe_run(args: argparse.Namespace) -> int:
@@ -157,11 +184,14 @@ def cmd_recipe_run(args: argparse.Namespace) -> int:
         profile=args.profile,
         execute=args.execute,
         fixtures=fixtures,
+        approval_file=args.approval_file,
         runs_dir=args.runs_dir,
         token_budget=args.budget,
+        timeout=args.timeout,
     )
     print_json(result)
-    return 0
+    failed = [step for step in result["steps"] if step["status"] not in {"dry_run", "replayed", "succeeded"}]
+    return 0 if not failed else 1
 
 
 def cmd_observe(args: argparse.Namespace) -> int:
@@ -171,23 +201,16 @@ def cmd_observe(args: argparse.Namespace) -> int:
 
 
 def cmd_artifact_get(args: argparse.Namespace) -> int:
-    ref = args.path_or_ref
-    line_no = None
-    if ref.startswith("artifact://"):
-        _, rest = ref.split("artifact://", 1)
-        run_id, rel = rest.split("/", 1)
-        if "#L" in rel:
-            rel, line_raw = rel.rsplit("#L", 1)
-            line_no = int(line_raw)
-        path = Path(args.runs_dir) / run_id / rel
-    else:
-        path = Path(ref)
-
-    if line_no:
-        lines = path.read_text(encoding="utf-8").splitlines()
-        print(lines[line_no - 1])
-    else:
-        print(path.read_text(encoding="utf-8"))
+    store = ArtifactStore(Path(args.runs_dir))
+    print_json(
+        store.read_ref(
+            args.artifact_ref,
+            start_line=args.start_line,
+            end_line=args.end_line,
+            max_lines=args.max_lines,
+            max_chars=args.max_chars,
+        )
+    )
     return 0
 
 

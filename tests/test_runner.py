@@ -52,7 +52,58 @@ scope:
         self.assertIn("-severity", plan["command"])
         self.assertIn("medium,high,critical", plan["command"])
 
+    def test_missing_tool_is_recorded_as_preflight_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            scope = tmp_path / "scope.yml"
+            scope.write_text(
+                "\n".join(
+                    [
+                        "scope:",
+                        '  include: ["http://localhost:3000"]',
+                        "  allow_private_ip: true",
+                        "  allow_active_scan: true",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            capsules = tmp_path / "capsules" / "missing"
+            capsules.mkdir(parents=True)
+            (capsules / "capsule.yml").write_text(
+                "\n".join(
+                    [
+                        "id: missing",
+                        "name: missing",
+                        "category: test",
+                        "summary: test capsule",
+                        "profiles:",
+                        "  safe:",
+                        "    active: true",
+                        "    action: test",
+                        '    command: ["definitely-not-an-installed-tool"]',
+                        "runtime:",
+                        "  binary: definitely-not-an-installed-tool",
+                        "outputs: {}",
+                        "artifacts: {}",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            from sec_capsules.core.registry import CapsuleRegistry
+
+            runner = CapsuleRunner(
+                registry=CapsuleRegistry(root=tmp_path / "capsules"),
+                runs_dir=tmp_path / "runs",
+            )
+            result = runner.run(
+                "missing",
+                target="http://localhost:3000",
+                scope_file=scope,
+                execute=True,
+            )
+            self.assertEqual("preflight_failed", result.status)
+            self.assertFalse(result.tool["available"])
+
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -1,0 +1,17 @@
+id: local-juice-shop-fingerprint
+
+info:
+  name: Local Juice Shop fingerprint
+  author: sec-capsules
+  severity: info
+  tags: local,juice-shop
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "OWASP Juice Shop"

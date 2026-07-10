@@ -11,6 +11,15 @@
 - Thin MCP adapter
 - Golden parser fixtures
 
+## v0.1.1
+
+- Tool health checks and bounded live execution
+- DNS-aware scope checks, rate-limit enforcement, and auditable approval records
+- Run manifests and bounded artifact references
+- Static recipe dependency validation and recipe-level observations
+- Complete MCP meta-tool surface with live execution disabled by default
+- Authorized Juice Shop local E2E workflow
+
 ## v0.2
 
 - Add `nmap` and `ffuf`
@@ -35,4 +44,3 @@
 - 10 to 15 high-quality capsules
 - 3 deterministic recipes
 - Stable CLI, MCP, and importable Python core
-

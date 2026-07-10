@@ -47,6 +47,8 @@ class CommandPlan:
     command: list[str]
     requires_approval: bool
     risk_level: str
+    action: str = ""
+    rate_limit: int | None = None
     note: str = "Command is a plan. Execution requires scope and policy checks."
 
     def to_dict(self) -> dict[str, Any]:
@@ -56,6 +58,8 @@ class CommandPlan:
             "command": self.command,
             "requires_approval": self.requires_approval,
             "risk_level": self.risk_level,
+            "action": self.action,
+            "rate_limit": self.rate_limit,
             "note": self.note,
         }
 
@@ -95,6 +99,14 @@ class RunResult:
     structured: dict[str, Any]
     observation: dict[str, Any]
     dry_run: bool
+    status: str = "succeeded"
+    target: str = ""
+    normalized_target: str = ""
+    scope_decision: dict[str, Any] = field(default_factory=dict)
+    approval: dict[str, Any] = field(default_factory=dict)
+    tool: dict[str, Any] = field(default_factory=dict)
+    timed_out: bool = False
+    output_truncated: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -109,6 +121,14 @@ class RunResult:
             "structured": self.structured,
             "observation": self.observation,
             "dry_run": self.dry_run,
+            "status": self.status,
+            "target": self.target,
+            "normalized_target": self.normalized_target,
+            "scope_decision": self.scope_decision,
+            "approval": self.approval,
+            "tool": self.tool,
+            "timed_out": self.timed_out,
+            "output_truncated": self.output_truncated,
         }
 
 
@@ -121,4 +141,3 @@ class RunContext:
     run_id: str | None = None
     artifacts_dir: Path | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
-

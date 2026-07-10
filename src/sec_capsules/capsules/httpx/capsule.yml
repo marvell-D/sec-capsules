@@ -33,6 +33,13 @@ profiles:
       - -u
       - $target
 
+runtime:
+  binary: httpx
+  version_command:
+    - httpx
+    - -version
+  max_output_bytes: 1048576
+
 outputs:
   structured:
     - service.v1
@@ -50,4 +57,3 @@ model_exposure:
 next_actions:
   - crawl_endpoints
   - run_baseline_scan
-

@@ -29,7 +29,42 @@ class ScopeTest(unittest.TestCase):
         decision = policy.decide("http://169.254.169.254/latest/meta-data")
         self.assertFalse(decision.allowed)
 
+    def test_blocks_public_name_that_resolves_to_private_address(self) -> None:
+        policy = ScopePolicy(
+            {"scope": {"include": ["example.com"], "allow_private_ip": False}},
+            resolver=lambda host: ["10.0.0.8"],
+        )
+        decision = policy.decide("https://example.com", resolve_dns=True)
+        self.assertFalse(decision.allowed)
+        self.assertIn("10.0.0.8", " ".join(decision.reasons))
+
+    def test_enforces_requested_rate_limit(self) -> None:
+        policy = ScopePolicy(
+            {"scope": {"include": ["example.com"], "max_requests_per_minute": 5}}
+        )
+        decision = policy.decide("https://example.com", requested_rate_limit=10)
+        self.assertFalse(decision.allowed)
+
+    def test_requires_target_bound_approval_record(self) -> None:
+        policy = ScopePolicy(
+            {"scope": {"include": ["example.com"], "require_approval_for": ["credentialed_scan"]}}
+        )
+        denied = policy.decide("https://example.com", action="credentialed_scan")
+        self.assertFalse(denied.allowed)
+
+        allowed = policy.decide(
+            "https://example.com",
+            action="credentialed_scan",
+            approval={
+                "id": "apr_demo_001",
+                "approved_by": "operator",
+                "actions": ["credentialed_scan"],
+                "targets": ["example.com"],
+            },
+        )
+        self.assertTrue(allowed.allowed, allowed.reasons)
+        self.assertTrue(allowed.approval["approved"])
+
 
 if __name__ == "__main__":
     unittest.main()
-

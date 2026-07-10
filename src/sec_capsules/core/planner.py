@@ -16,6 +16,7 @@ def build_command_plan(capsule: Capsule, target: str, profile_name: str = "safe"
         "target": target,
         "rate_limit": profile.get("rate_limit", ""),
         "severity": ",".join(profile.get("severity", [])),
+        "capsule_root": str(capsule.root),
     }
     variables.update(profile.get("vars", {}))
 
@@ -31,5 +32,6 @@ def build_command_plan(capsule: Capsule, target: str, profile_name: str = "safe"
         command=command,
         requires_approval=bool(profile.get("requires_approval", False)),
         risk_level=capsule.risk_level,
+        action=str(profile.get("action", capsule.category)),
+        rate_limit=int(profile["rate_limit"]) if profile.get("rate_limit") is not None else None,
     )
-

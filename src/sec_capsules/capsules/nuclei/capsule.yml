@@ -39,6 +39,30 @@ profiles:
       - $rate_limit
       - -u
       - $target
+  local_lab:
+    description: Single local Juice Shop fingerprint template for the authorized E2E lab.
+    active: true
+    action: active_scan
+    requires_approval: false
+    rate_limit: 5
+    command:
+      - nuclei
+      - -jsonl
+      - -t
+      - $capsule_root/templates/local-juice-shop.yaml
+      - -it
+      - $capsule_root/templates/local-juice-shop.yaml
+      - -rl
+      - $rate_limit
+      - -u
+      - $target
+
+runtime:
+  binary: nuclei
+  version_command:
+    - nuclei
+    - -version
+  max_output_bytes: 1048576
 
 outputs:
   structured:
@@ -57,4 +81,3 @@ next_actions:
   - inspect_evidence
   - export_report
   - validate_finding
-

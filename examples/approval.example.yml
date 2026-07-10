@@ -1,0 +1,7 @@
+approval:
+  id: apr_example_001
+  approved_by: security-operator@example.invalid
+  actions:
+    - credentialed_scan
+  targets:
+    - https://app.example.com

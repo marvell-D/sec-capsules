@@ -1,0 +1,16 @@
+id: web-recon-local-lab
+description: Deterministic local Juice Shop verification recipe for the self-hosted E2E runner.
+steps:
+  - id: probe_http
+    capsule: httpx
+    profile: safe
+  - id: crawl_endpoints
+    capsule: katana
+    profile: safe
+    depends_on:
+      - probe_http
+  - id: verify_local_lab
+    capsule: nuclei
+    profile: local_lab
+    depends_on:
+      - crawl_endpoints

@@ -2,6 +2,7 @@ scope:
   include:
     - "http://localhost:3000"
     - "localhost:3000"
+    - "http://127.0.0.1:3000"
   exclude: []
   max_requests_per_minute: 60
   allow_private_ip: true
@@ -9,4 +10,3 @@ scope:
   require_approval_for:
     - fuzzing
     - credentialed_scan
-

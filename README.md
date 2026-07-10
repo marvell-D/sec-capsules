@@ -43,12 +43,36 @@ python3 -m venv .venv
 python -m pip install -e .
 
 sec-capsules list
+sec-capsules doctor --require
 sec-capsules describe nuclei --level usage
 sec-capsules plan nuclei --target http://localhost:3000 --scope examples/juice-shop-local/scope.yml
 sec-capsules run nuclei --target http://localhost:3000 --scope examples/juice-shop-local/scope.yml --fixture src/sec_capsules/capsules/nuclei/fixtures/sample.jsonl
 ```
 
 The `run` command defaults to fixture or dry-run oriented behavior. Real tool execution requires `--execute`.
+
+## Execution Controls
+
+- `doctor` verifies that a capsule's executable is available before an operator starts a live run.
+- Live runs resolve the target host and reject private, link-local, metadata, multicast, and out-of-scope addresses unless the scope explicitly allows an authorized local target.
+- The profile rate limit cannot exceed `scope.max_requests_per_minute`.
+- A profile or scope action that requires approval needs an operator-provided approval record via `--approval-file`; this is an auditable workflow acknowledgement, not proof of legal authorization.
+- Each run writes a manifest with its scope decision, tool version, exit state, artifact hashes, timeout state, and output-truncation state.
+- MCP live execution is disabled unless the MCP host explicitly sets `SEC_CAPSULES_ALLOW_MCP_EXECUTE=1`.
+
+Artifact inspection is explicit and bounded:
+
+```bash
+sec-capsules artifact get artifact://run_xxx/artifacts/nuclei.jsonl#L1
+```
+
+For an authorized local integration check, install the three ProjectDiscovery tools and run:
+
+```bash
+scripts/e2e-local.sh
+```
+
+The script starts a local Juice Shop container bound only to `127.0.0.1`, runs the deterministic recipe, and removes the container afterwards.
 
 ## Non-Goals
 
@@ -77,4 +101,3 @@ get_observation
 get_artifact
 export_run
 ```
-

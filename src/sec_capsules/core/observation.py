@@ -11,6 +11,7 @@ def build_observation_packet(
     tool: str,
     structured: dict[str, Any],
     token_budget: int = 800,
+    execution: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     findings = list(structured.get("findings", []))
     services = list(structured.get("services", []))
@@ -31,6 +32,7 @@ def build_observation_packet(
         "type": "observation_packet.v1",
         "run_id": run_id,
         "tool": tool,
+        "execution": execution or {},
         "summary": summarize_counts(findings=findings, services=services, endpoints=endpoints),
         "top_findings": top_findings,
         "new_services": services[:8],
@@ -80,4 +82,3 @@ def recommended_next_actions(findings: list[dict], endpoints: list[dict]) -> lis
     if not actions:
         actions.append("review_raw_artifact_if_needed")
     return actions
-

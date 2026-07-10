@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sec-capsules"
-version = "0.1.0"
+version = "0.1.1"
 description = "Agent-native security tool capsules with safe execution, evidence artifacts, and token-efficient observations."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -34,6 +34,7 @@ where = ["src"]
 sec_capsules = [
   "capsules/*/capsule.yml",
   "capsules/*/fixtures/*",
+  "capsules/*/templates/*",
   "recipes/*.yml",
   "schemas/*.json"
 ]

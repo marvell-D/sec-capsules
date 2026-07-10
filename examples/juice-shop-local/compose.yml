@@ -1,0 +1,7 @@
+name: sec-capsules-e2e
+
+services:
+  juice-shop:
+    image: bkimminich/juice-shop:latest
+    ports:
+      - "127.0.0.1:3000:3000"
