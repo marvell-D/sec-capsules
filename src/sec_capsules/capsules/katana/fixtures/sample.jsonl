@@ -1,0 +1,4 @@
+{"timestamp":"2026-07-10T00:00:00Z","request":{"method":"GET","endpoint":"http://localhost:3000/login"}}
+{"timestamp":"2026-07-10T00:00:01Z","request":{"method":"GET","endpoint":"http://localhost:3000/admin"}}
+{"timestamp":"2026-07-10T00:00:02Z","request":{"method":"GET","endpoint":"http://localhost:3000/rest/products/search"}}
+

@@ -1,0 +1,52 @@
+id: katana
+name: katana
+category: web_crawler
+summary: Web crawler for collecting URLs and endpoints from scoped web targets.
+stage:
+  - endpoint_discovery
+  - web_recon
+risk_level: active_low
+
+best_for:
+  - Collect links and endpoints from known in-scope web services.
+  - Prepare endpoint candidates for baseline scanners.
+  - Preserve crawl evidence as JSONL artifacts.
+
+avoid_when:
+  - Authentication context is unclear.
+  - Crawling could trigger unwanted state-changing actions.
+  - Target scope is not confirmed.
+
+profiles:
+  safe:
+    description: Depth-limited JSONL crawl for one scoped target.
+    active: true
+    action: crawling
+    requires_approval: false
+    rate_limit: 10
+    command:
+      - katana
+      - -jsonl
+      - -silent
+      - -rate-limit
+      - $rate_limit
+      - -u
+      - $target
+
+outputs:
+  structured:
+    - endpoint.v1
+    - evidence.v1
+
+artifacts:
+  primary: katana.jsonl
+  content_type: application/jsonl
+
+model_exposure:
+  default: observation_only
+  max_tokens: 800
+
+next_actions:
+  - run_baseline_scan
+  - inspect_interesting_endpoints
+

@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sec-capsules"
+version = "0.1.0"
+description = "Agent-native security tool capsules with safe execution, evidence artifacts, and token-efficient observations."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "marvell-D" }
+]
+dependencies = [
+  "PyYAML>=6.0.1"
+]
+
+[project.optional-dependencies]
+mcp = [
+  "mcp>=1.0.0"
+]
+dev = [
+  "pytest>=8.0.0"
+]
+
+[project.scripts]
+sec-capsules = "sec_capsules.interfaces.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+sec_capsules = [
+  "capsules/*/capsule.yml",
+  "capsules/*/fixtures/*",
+  "recipes/*.yml",
+  "schemas/*.json"
+]

@@ -1,0 +1,17 @@
+id: web-recon-safe
+description: Deterministic safe baseline workflow for authorized web targets.
+steps:
+  - id: probe_http
+    capsule: httpx
+    profile: safe
+  - id: crawl_endpoints
+    capsule: katana
+    profile: safe
+    depends_on:
+      - probe_http
+  - id: baseline_scan
+    capsule: nuclei
+    profile: safe
+    depends_on:
+      - crawl_endpoints
+

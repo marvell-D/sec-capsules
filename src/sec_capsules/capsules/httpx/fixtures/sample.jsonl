@@ -1,0 +1,3 @@
+{"url":"http://localhost:3000","input":"localhost:3000","host":"localhost","port":3000,"scheme":"http","status_code":200,"title":"OWASP Juice Shop","tech":["Express","Angular"]}
+{"url":"http://localhost:3000/rest/products/search","input":"localhost:3000","host":"localhost","port":3000,"scheme":"http","status_code":200,"title":"OWASP Juice Shop API","tech":["Express"]}
+

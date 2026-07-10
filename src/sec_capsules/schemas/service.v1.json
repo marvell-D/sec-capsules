@@ -1,0 +1,2 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Service","type":"object","required":["type","host","protocol","source_tool"],"properties":{"type":{"const":"service.v1"},"host":{"type":"string"},"port":{},"protocol":{"type":"string"},"url":{"type":"string"},"status_code":{},"title":{},"technologies":{"type":"array"},"source_tool":{"type":"string"},"evidence_refs":{"type":"array","items":{"type":"string"}}}}
+

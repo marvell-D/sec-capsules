@@ -1,0 +1,53 @@
+id: httpx
+name: httpx
+category: http_probe
+summary: Fast HTTP probing and lightweight web service fingerprinting.
+stage:
+  - web_recon
+  - service_discovery
+risk_level: active_low
+
+best_for:
+  - Identify live HTTP services from scoped targets.
+  - Collect status code, title, technology hints, and final URL.
+  - Prepare clean HTTP service input for downstream crawlers and scanners.
+
+avoid_when:
+  - Target scope is not confirmed.
+  - Private or metadata IP ranges are not explicitly allowed.
+  - The target cannot tolerate automated HTTP requests.
+
+profiles:
+  safe:
+    description: Low-rate JSONL probing for scoped targets.
+    active: true
+    action: http_probe
+    requires_approval: false
+    rate_limit: 20
+    command:
+      - httpx
+      - -json
+      - -silent
+      - -rl
+      - $rate_limit
+      - -u
+      - $target
+
+outputs:
+  structured:
+    - service.v1
+    - endpoint.v1
+    - evidence.v1
+
+artifacts:
+  primary: httpx.jsonl
+  content_type: application/jsonl
+
+model_exposure:
+  default: observation_only
+  max_tokens: 800
+
+next_actions:
+  - crawl_endpoints
+  - run_baseline_scan
+

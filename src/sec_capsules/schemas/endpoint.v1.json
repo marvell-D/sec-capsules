@@ -1,0 +1,2 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Endpoint","type":"object","required":["type","url","source_tool"],"properties":{"type":{"const":"endpoint.v1"},"url":{"type":"string"},"method":{"type":"string"},"status_code":{},"source_tool":{"type":"string"},"evidence_refs":{"type":"array","items":{"type":"string"}}}}
+

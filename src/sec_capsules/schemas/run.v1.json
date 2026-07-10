@@ -1,0 +1,2 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Run","type":"object","required":["run_id","capsule_id","profile","command","started_at","finished_at"],"properties":{"run_id":{"type":"string"},"capsule_id":{"type":"string"},"profile":{"type":"string"},"command":{"type":"array","items":{"type":"string"}},"started_at":{"type":"string"},"finished_at":{"type":"string"},"exit_code":{},"artifacts":{"type":"array"},"structured":{"type":"object"},"observation":{"type":"object"},"dry_run":{"type":"boolean"}}}
+

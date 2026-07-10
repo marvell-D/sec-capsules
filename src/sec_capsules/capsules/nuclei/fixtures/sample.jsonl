@@ -1,0 +1,2 @@
+{"template-id":"exposed-admin-panel","info":{"name":"Exposed admin panel","severity":"medium","tags":["panel","exposure"],"classification":{"cwe-id":["CWE-200"]}},"host":"http://localhost:3000","matched-at":"http://localhost:3000/admin","matcher-status":true}
+{"template-id":"missing-security-headers","info":{"name":"Missing Security Headers","severity":"medium","tags":["headers","misconfig"]},"host":"http://localhost:3000","matched-at":"http://localhost:3000","matcher-status":true}

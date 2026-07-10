@@ -1,0 +1,2 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Artifact","type":"object","required":["artifact_id","path","sha256","produced_by","run_id"],"properties":{"artifact_id":{"type":"string"},"path":{"type":"string"},"sha256":{"type":"string"},"content_type":{"type":"string"},"redacted":{"type":"boolean"},"produced_by":{"type":"string"},"run_id":{"type":"string"}}}
+

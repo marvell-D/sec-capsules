@@ -1,0 +1,2 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Evidence","type":"object","required":["type","source_tool","artifact_ref","summary"],"properties":{"type":{"const":"evidence.v1"},"source_tool":{"type":"string"},"artifact_ref":{"type":"string"},"summary":{"type":"string"}}}
+

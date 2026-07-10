@@ -1,0 +1,21 @@
+{
+  "type": "observation_packet.v1",
+  "run_id": "run_demo_001",
+  "tool": "nuclei",
+  "summary": "Produced 2 finding candidate(s). Raw output is preserved as artifacts and hidden by default.",
+  "top_findings": [
+    {
+      "title": "Exposed admin panel",
+      "severity": "medium",
+      "confidence": "high",
+      "affected": "http://localhost:3000/admin",
+      "evidence_ref": "artifact://run_demo_001/artifacts/nuclei.jsonl#L1"
+    }
+  ],
+  "hidden_from_model": {
+    "raw_output": true,
+    "secrets_redacted": true,
+    "artifact_drilldown_required": true
+  }
+}
+

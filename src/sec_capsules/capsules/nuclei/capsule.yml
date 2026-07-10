@@ -1,0 +1,60 @@
+id: nuclei
+name: nuclei
+category: vulnerability_scanner
+summary: Template-based scanner for known CVEs, exposures, and misconfigurations.
+stage:
+  - vulnerability_scanning
+  - baseline_scan
+risk_level: active_low_to_medium
+
+best_for:
+  - Low-noise baseline vulnerability checks.
+  - Known CVE checks.
+  - Exposed panels and misconfiguration checks.
+  - Evidence-backed finding candidates.
+
+avoid_when:
+  - Target scope is not confirmed.
+  - Target cannot tolerate automated HTTP requests.
+  - Active templates are not approved.
+  - Authentication context is unclear.
+
+profiles:
+  safe:
+    description: Medium-or-higher severity JSONL scan with low rate limit.
+    active: true
+    action: active_scan
+    requires_approval: false
+    rate_limit: 5
+    severity:
+      - medium
+      - high
+      - critical
+    command:
+      - nuclei
+      - -jsonl
+      - -severity
+      - $severity
+      - -rl
+      - $rate_limit
+      - -u
+      - $target
+
+outputs:
+  structured:
+    - finding.v1
+    - evidence.v1
+
+artifacts:
+  primary: nuclei.jsonl
+  content_type: application/jsonl
+
+model_exposure:
+  default: observation_only
+  max_tokens: 800
+
+next_actions:
+  - inspect_evidence
+  - export_report
+  - validate_finding
+
