@@ -1,20 +1,28 @@
 # AGENTS.md
 
-This repository implements `sec-capsules`, a security tool invocation layer for AI agents.
+本仓库实现的是 `sec-capsules`：面向 AI Agent 的安全工具调用层。自动化编码 Agent 在修改代码前，应先阅读 [中文开发者手册](docs/zh-CN/V0.1.1_开发者手册.md)。
 
-## Project Boundaries
+## 项目边界
 
-- Keep the project focused on tool cards, safe execution, artifacts, parsers, observations, and evidence.
-- Do not turn this into an autonomous pentest agent.
-- Do not add exploit automation or agent planning logic.
-- Prefer small, testable runtime modules.
-- Raw tool output should be stored as artifacts and not returned to the model by default.
-- Scope checks must happen before any real tool execution.
+- 只关注工具卡、Scope、安全执行、artifact、parser、ObservationPacket 与 evidence。
+- 不将仓库演化为自主渗透 Agent，不实现攻击规划、自动利用、多 Agent 编排或长期攻击记忆。
+- 不添加绕过授权、默认扩大扫描范围或自动尝试 exploit 的功能。
+- 原始工具输出默认只能写入 artifact，不能直接作为模型常规上下文返回。
+- 所有真实外部工具执行前必须经过 ScopePolicy。
 
-## Development
+## 修改原则
 
-- Run `scripts/ci.sh` before handing off changes.
-- Add parser fixtures for any new capsule.
-- Add or update capsule docs when changing command behavior.
-- Keep CLI and MCP behavior consistent by routing both through core runtime modules.
+- Core 不依赖 CLI、MCP 或特定 Agent 框架；接口层只能作为薄 adapter 调用 Core。
+- 新 Capsule 必须同时提供 `capsule.yml`、parser、fixture、测试、artifact 映射与 Observation 策略。
+- 修改命令 profile 时，先用 `sec-capsules plan` 审核 argv，再做真实本机验证。
+- 失败、超时和缺工具必须产生终态审计记录，不能只抛 traceback。
+- 不把“默认不展示 raw artifact”误写成“已经完成通用脱敏”；通用 redaction 尚未实现。
 
+## 交付前检查
+
+```bash
+scripts/ci.sh
+python -m build
+```
+
+涉及真实工具时，只能在已授权本机靶场执行 `scripts/e2e-local.sh`。CLI 和 MCP 的同一能力必须通过 Core 共享实现，避免两条安全策略分叉。

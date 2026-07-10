@@ -1,20 +1,42 @@
-# Contributing
+# 贡献指南
 
-The best early contributions are high-quality capsule improvements:
+欢迎贡献，但本项目优先接受能提高 Capsule 质量、执行可信度和上下文质量的改动，而不是单纯增加工具数量。
 
-- Better `capsule.yml` metadata
-- Realistic parser fixtures
-- Parser edge cases
-- Scope and redaction tests
-- ObservationPacket quality improvements
+## 适合的早期贡献
 
-New capsules should include:
+- 改进 `capsule.yml` 的适用范围、风险说明、profile 与运行时 metadata。
+- 提供已授权、可公开的 JSONL / XML fixture，并补 parser 边界测试。
+- 修复 Scope、artifact 引用、超时、输出截断和 MCP adapter 的安全回归。
+- 改进 ObservationPacket 的去重、排序、预算与推荐动作质量。
+- 完善本机靶场 E2E、文档与 schema conformance test。
 
-- `capsule.yml`
-- Parser implementation
-- Fixture samples
-- Tests
-- Safe profile
-- Artifact mapping
-- Observation mapping
+## 新增 Capsule 的最低清单
 
+```text
+src/sec_capsules/capsules/<tool-id>/
+├── capsule.yml
+├── parser.py
+├── fixtures/sample.<format>
+└── templates/                 # 仅当工具需要随包模板时添加
+
+tests/test_<tool-or-area>.py
+```
+
+新 Capsule 还必须具备：
+
+1. 明确的 `best_for`、`avoid_when`、风险等级和 safe profile。
+2. argv 形式的 command，不得拼接 shell 字符串。
+3. `runtime.binary`、版本探测命令和输出大小上限。
+4. 原始 artifact 名称与 content type。
+5. parser 产生的统一 `service`、`endpoint`、`finding`、`evidence` 对象。
+6. 对 fixture、错误行、重复结果、Scope 和 Observation 的测试。
+7. 已授权的本机 E2E 方案；不要把第三方目标放进 CI。
+
+提交前运行：
+
+```bash
+scripts/ci.sh
+python -m build
+```
+
+更详细的结构与设计理由见 [中文开发者手册](docs/zh-CN/V0.1.1_开发者手册.md)。
