@@ -38,12 +38,25 @@ class ScopeTest(unittest.TestCase):
         self.assertFalse(decision.allowed)
         self.assertIn("10.0.0.8", " ".join(decision.reasons))
 
-    def test_enforces_requested_rate_limit(self) -> None:
+    def test_enforces_requested_requests_per_second(self) -> None:
         policy = ScopePolicy(
-            {"scope": {"include": ["example.com"], "max_requests_per_minute": 5}}
+            {"scope": {"include": ["example.com"], "max_requests_per_second": 5}}
         )
-        decision = policy.decide("https://example.com", requested_rate_limit=10)
+        decision = policy.decide("https://example.com", requested_requests_per_second=10)
         self.assertFalse(decision.allowed)
+
+    def test_converts_legacy_per_minute_limit_without_overstating_capacity(self) -> None:
+        policy = ScopePolicy(
+            {"scope": {"include": ["example.com"], "max_requests_per_minute": 60}}
+        )
+        allowed = policy.decide("https://example.com", requested_requests_per_second=1)
+        denied = policy.decide("https://example.com", requested_requests_per_second=2)
+        self.assertTrue(allowed.allowed, allowed.reasons)
+        self.assertFalse(denied.allowed)
+
+    def test_rejects_non_positive_scope_rate_limit(self) -> None:
+        with self.assertRaisesRegex(ValueError, "greater than zero"):
+            ScopePolicy({"scope": {"max_requests_per_second": 0}})
 
     def test_requires_target_bound_approval_record(self) -> None:
         policy = ScopePolicy(

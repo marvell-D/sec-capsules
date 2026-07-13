@@ -48,7 +48,9 @@ class CommandPlan:
     requires_approval: bool
     risk_level: str
     action: str = ""
-    rate_limit: int | None = None
+    arguments: dict[str, Any] = field(default_factory=dict)
+    argument_sources: dict[str, str] = field(default_factory=dict)
+    requests_per_second: int | None = None
     note: str = "Command is a plan. Execution requires scope and policy checks."
 
     def to_dict(self) -> dict[str, Any]:
@@ -59,7 +61,9 @@ class CommandPlan:
             "requires_approval": self.requires_approval,
             "risk_level": self.risk_level,
             "action": self.action,
-            "rate_limit": self.rate_limit,
+            "arguments": self.arguments,
+            "argument_sources": self.argument_sources,
+            "requests_per_second": self.requests_per_second,
             "note": self.note,
         }
 
@@ -100,6 +104,8 @@ class RunResult:
     observation: dict[str, Any]
     dry_run: bool
     status: str = "succeeded"
+    arguments: dict[str, Any] = field(default_factory=dict)
+    argument_sources: dict[str, str] = field(default_factory=dict)
     target: str = ""
     normalized_target: str = ""
     scope_decision: dict[str, Any] = field(default_factory=dict)
@@ -122,6 +128,8 @@ class RunResult:
             "observation": self.observation,
             "dry_run": self.dry_run,
             "status": self.status,
+            "arguments": self.arguments,
+            "argument_sources": self.argument_sources,
             "target": self.target,
             "normalized_target": self.normalized_target,
             "scope_decision": self.scope_decision,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 from sec_capsules.core.artifacts import ArtifactStore
 from sec_capsules.core.exporters import export_markdown
@@ -47,6 +48,7 @@ def run_capsule(
     target: str,
     scope: str,
     profile: str = "safe",
+    arguments: dict[str, Any] | None = None,
     fixture: str | None = None,
     execute: bool = False,
     approval_file: str | None = None,
@@ -60,6 +62,7 @@ def run_capsule(
         target=target,
         scope_file=scope,
         profile=profile,
+        arguments=arguments,
         fixture=fixture,
         execute=execute,
         approval_file=approval_file,
@@ -73,6 +76,7 @@ def run_recipe(
     target: str,
     scope: str,
     profile: str = "safe",
+    arguments_by_step: dict[str, dict[str, Any]] | None = None,
     execute: bool = False,
     approval_file: str | None = None,
     budget: int = 800,
@@ -84,6 +88,7 @@ def run_recipe(
         target=target,
         scope_file=scope,
         profile=profile,
+        arguments_by_step=arguments_by_step,
         execute=execute,
         approval_file=approval_file,
         runs_dir=_runs_dir(),

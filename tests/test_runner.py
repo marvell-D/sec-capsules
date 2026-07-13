@@ -37,12 +37,15 @@ scope:
                 "nuclei",
                 target="http://localhost:3000",
                 scope_file=scope,
+                arguments={"severity": ["critical"], "requests_per_second": 2},
                 fixture=fixture,
             )
 
             self.assertFalse(result.dry_run)
             self.assertEqual(2, len(result.structured["findings"]))
             self.assertEqual("observation_packet.v1", result.observation["type"])
+            self.assertEqual(["critical"], result.arguments["severity"])
+            self.assertEqual("agent", result.argument_sources["severity"])
             self.assertTrue((tmp_path / "runs" / result.run_id / "run.json").exists())
 
     def test_plan_builds_expected_command(self) -> None:
@@ -51,6 +54,16 @@ scope:
         self.assertEqual("nuclei", plan["command"][0])
         self.assertIn("-severity", plan["command"])
         self.assertIn("medium,high,critical", plan["command"])
+
+    def test_plan_accepts_semantic_arguments_without_raw_argv(self) -> None:
+        plan = CapsuleRunner().plan(
+            "katana",
+            target="https://example.com",
+            arguments={"depth": 1, "requests_per_second": 3},
+        )
+        self.assertEqual({"depth": 1, "requests_per_second": 3}, plan["arguments"])
+        self.assertEqual("agent", plan["argument_sources"]["depth"])
+        self.assertNotIn("extra_args", plan)
 
     def test_missing_tool_is_recorded_as_preflight_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

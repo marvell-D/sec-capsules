@@ -17,23 +17,45 @@ avoid_when:
   - Crawling could trigger unwanted state-changing actions.
   - Target scope is not confirmed.
 
+input_schema:
+  type: object
+  additionalProperties: false
+  properties:
+    depth:
+      type: integer
+      description: Maximum crawl depth from the scoped starting URL.
+      minimum: 1
+      maximum: 5
+      x-agent-settable: true
+    requests_per_second:
+      type: integer
+      description: Maximum crawl requests per second for this invocation.
+      minimum: 1
+      maximum: 10
+      x-agent-settable: true
+
 profiles:
   safe:
     description: Depth-limited JSONL crawl for one scoped target.
     active: true
     action: crawling
     requires_approval: false
-    rate_limit: 10
+    defaults:
+      depth: 2
+      requests_per_second: 10
+    allowed_arguments:
+      - depth
+      - requests_per_second
     command:
       - katana
       - -jsonl
       - -silent
       - -depth
-      - "2"
+      - $depth
       - -fs
       - fqdn
       - -rate-limit
-      - $rate_limit
+      - $requests_per_second
       - -u
       - $target
 

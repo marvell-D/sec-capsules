@@ -1,0 +1,9 @@
+{
+  "capsule_id": "nuclei",
+  "target": "https://example.com",
+  "profile": "safe",
+  "arguments": {
+    "severity": ["critical"],
+    "requests_per_second": 2
+  }
+}

@@ -17,19 +17,33 @@ avoid_when:
   - Private or metadata IP ranges are not explicitly allowed.
   - The target cannot tolerate automated HTTP requests.
 
+input_schema:
+  type: object
+  additionalProperties: false
+  properties:
+    requests_per_second:
+      type: integer
+      description: Maximum HTTP requests per second for this invocation.
+      minimum: 1
+      maximum: 20
+      x-agent-settable: true
+
 profiles:
   safe:
     description: Low-rate JSONL probing for scoped targets.
     active: true
     action: http_probe
     requires_approval: false
-    rate_limit: 20
+    defaults:
+      requests_per_second: 20
+    allowed_arguments:
+      - requests_per_second
     command:
       - httpx
       - -json
       - -silent
       - -rl
-      - $rate_limit
+      - $requests_per_second
       - -u
       - $target
 

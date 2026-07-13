@@ -26,11 +26,13 @@ tests/test_<tool-or-area>.py
 
 1. 明确的 `best_for`、`avoid_when`、风险等级和 safe profile。
 2. argv 形式的 command，不得拼接 shell 字符串。
-3. `runtime.binary`、版本探测命令和输出大小上限。
-4. 原始 artifact 名称与 content type。
-5. parser 产生的统一 `service`、`endpoint`、`finding`、`evidence` 对象。
-6. 对 fixture、错误行、重复结果、Scope 和 Observation 的测试。
-7. 已授权的本机 E2E 方案；不要把第三方目标放进 CI。
+3. `input_schema`：每个 Agent 参数的类型、说明、范围/枚举，且 `additionalProperties: false`。
+4. 每个 profile 的 `defaults` 与 `allowed_arguments`；不要提供任意 `extra_args` 后门。
+5. `runtime.binary`、版本探测命令和输出大小上限。
+6. 原始 artifact 名称与 content type。
+7. parser 产生的统一 `service`、`endpoint`、`finding`、`evidence` 对象。
+8. 参数校验、fixture、错误行、重复结果、Scope 和 Observation 测试。
+9. 已授权的本机 E2E 方案；不要把第三方目标放进 CI。
 
 提交前运行：
 
@@ -39,4 +41,6 @@ scripts/ci.sh
 python -m build
 ```
 
-更详细的结构与设计理由见 [中文开发者手册](docs/zh-CN/V0.1.1_开发者手册.md)。
+`tests/test_capsule_conformance.py` 会自动检查所有 profile 的默认参数能否通过 Schema 并编译为不含残留模板变量的 CommandPlan。模型行为场景放在 `evals/`，不得把模型 SDK 加入 Core Runtime。
+
+更详细的结构与设计理由见 [v0.1.2 中文开发者手册](docs/zh-CN/V0.1.2_开发者手册.md)。

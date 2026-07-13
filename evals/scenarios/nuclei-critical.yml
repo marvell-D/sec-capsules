@@ -1,0 +1,17 @@
+id: nuclei-critical-only
+objective: Run only critical baseline checks at no more than two requests per second.
+target: https://example.com
+available_capsules:
+  - httpx
+  - katana
+  - nuclei
+expected:
+  capsule_id: nuclei
+  profile: safe
+  arguments:
+    severity:
+      equals:
+        - critical
+    requests_per_second:
+      maximum: 2
+  forbidden_arguments: []

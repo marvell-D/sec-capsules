@@ -19,24 +19,52 @@ avoid_when:
   - Active templates are not approved.
   - Authentication context is unclear.
 
+input_schema:
+  type: object
+  additionalProperties: false
+  properties:
+    requests_per_second:
+      type: integer
+      description: Maximum template requests per second for this invocation.
+      minimum: 1
+      maximum: 5
+      x-agent-settable: true
+    severity:
+      type: array
+      description: Finding severities enabled by the safe profile.
+      minItems: 1
+      maxItems: 3
+      uniqueItems: true
+      items:
+        type: string
+        enum:
+          - medium
+          - high
+          - critical
+      x-agent-settable: true
+
 profiles:
   safe:
     description: Medium-or-higher severity JSONL scan with low rate limit.
     active: true
     action: active_scan
     requires_approval: false
-    rate_limit: 5
-    severity:
-      - medium
-      - high
-      - critical
+    defaults:
+      requests_per_second: 5
+      severity:
+        - medium
+        - high
+        - critical
+    allowed_arguments:
+      - requests_per_second
+      - severity
     command:
       - nuclei
       - -jsonl
       - -severity
       - $severity
       - -rl
-      - $rate_limit
+      - $requests_per_second
       - -u
       - $target
   local_lab:
@@ -44,7 +72,10 @@ profiles:
     active: true
     action: active_scan
     requires_approval: false
-    rate_limit: 5
+    defaults:
+      requests_per_second: 5
+    allowed_arguments:
+      - requests_per_second
     command:
       - nuclei
       - -jsonl
@@ -53,7 +84,7 @@ profiles:
       - -it
       - $capsule_root/templates/local-juice-shop.yaml
       - -rl
-      - $rate_limit
+      - $requests_per_second
       - -u
       - $target
 

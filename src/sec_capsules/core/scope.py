@@ -51,7 +51,17 @@ class ScopePolicy:
         scope = raw.get("scope", raw)
         self.include = list(scope.get("include", []))
         self.exclude = list(scope.get("exclude", []))
-        self.max_requests_per_minute = int(scope.get("max_requests_per_minute", 60))
+        if "max_requests_per_second" in scope:
+            self.max_requests_per_second = float(scope["max_requests_per_second"])
+            self.rate_limit_source = "max_requests_per_second"
+        elif "max_requests_per_minute" in scope:
+            self.max_requests_per_second = float(scope["max_requests_per_minute"]) / 60
+            self.rate_limit_source = "max_requests_per_minute (legacy, converted to per-second)"
+        else:
+            self.max_requests_per_second = 60.0
+            self.rate_limit_source = "default"
+        if self.max_requests_per_second <= 0:
+            raise ValueError("scope request-rate maximum must be greater than zero")
         self.allow_private_ip = bool(scope.get("allow_private_ip", False))
         self.allow_active_scan = bool(scope.get("allow_active_scan", False))
         self.require_approval_for = set(scope.get("require_approval_for", []))
@@ -75,7 +85,7 @@ class ScopePolicy:
         target: str,
         action: str | None = None,
         active: bool = False,
-        requested_rate_limit: int | None = None,
+        requested_requests_per_second: int | None = None,
         requires_approval: bool = False,
         approval: dict | None = None,
         resolve_dns: bool = False,
@@ -92,10 +102,13 @@ class ScopePolicy:
         if active and not self.allow_active_scan:
             reasons.append("active scan is not allowed by scope policy")
 
-        if requested_rate_limit is not None and requested_rate_limit > self.max_requests_per_minute:
+        if (
+            requested_requests_per_second is not None
+            and requested_requests_per_second > self.max_requests_per_second
+        ):
             reasons.append(
-                f"requested rate limit {requested_rate_limit} exceeds scope maximum "
-                f"{self.max_requests_per_minute}"
+                f"requested rate {requested_requests_per_second} requests/second exceeds scope maximum "
+                f"{self.max_requests_per_second:g} requests/second from {self.rate_limit_source}"
             )
 
         should_resolve = host and resolve_dns and (

@@ -50,6 +50,7 @@ def build_parser() -> argparse.ArgumentParser:
     plan_p.add_argument("capsule_id")
     plan_p.add_argument("--target", required=True)
     plan_p.add_argument("--profile", default="safe")
+    plan_p.add_argument("--arguments-json", default="{}", help="Agent-style semantic arguments as a JSON object")
     plan_p.add_argument("--scope", help="Accepted for CLI symmetry; plan does not execute")
     plan_p.set_defaults(func=cmd_plan)
 
@@ -58,6 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_p.add_argument("--target", required=True)
     run_p.add_argument("--scope", required=True)
     run_p.add_argument("--profile", default="safe")
+    run_p.add_argument("--arguments-json", default="{}", help="Agent-style semantic arguments as a JSON object")
     run_p.add_argument("--fixture")
     run_p.add_argument("--approval-file", help="Operator approval record required by some profiles")
     run_p.add_argument("--execute", action="store_true", help="Actually execute the external tool")
@@ -74,6 +76,11 @@ def build_parser() -> argparse.ArgumentParser:
     recipe_run_p.add_argument("--target", required=True)
     recipe_run_p.add_argument("--scope", required=True)
     recipe_run_p.add_argument("--profile", default="safe")
+    recipe_run_p.add_argument(
+        "--arguments-by-step-json",
+        default="{}",
+        help="Semantic arguments keyed by recipe step id",
+    )
     recipe_run_p.add_argument("--execute", action="store_true")
     recipe_run_p.add_argument("--fixture", action="append", default=[], help="capsule=path")
     recipe_run_p.add_argument("--approval-file")
@@ -141,7 +148,14 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
 def cmd_plan(args: argparse.Namespace) -> int:
     runner = CapsuleRunner(runs_dir=args.runs_dir)
-    print_json(runner.plan(args.capsule_id, target=args.target, profile=args.profile))
+    print_json(
+        runner.plan(
+            args.capsule_id,
+            target=args.target,
+            profile=args.profile,
+            arguments=parse_json_object(args.arguments_json, "--arguments-json"),
+        )
+    )
     return 0
 
 
@@ -152,6 +166,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         target=args.target,
         scope_file=args.scope,
         profile=args.profile,
+        arguments=parse_json_object(args.arguments_json, "--arguments-json"),
         execute=args.execute,
         fixture=args.fixture,
         approval_file=args.approval_file,
@@ -182,6 +197,10 @@ def cmd_recipe_run(args: argparse.Namespace) -> int:
         target=args.target,
         scope_file=args.scope,
         profile=args.profile,
+        arguments_by_step=parse_nested_json_object(
+            args.arguments_by_step_json,
+            "--arguments-by-step-json",
+        ),
         execute=args.execute,
         fixtures=fixtures,
         approval_file=args.approval_file,
@@ -223,6 +242,24 @@ def cmd_export(args: argparse.Namespace) -> int:
 
 def print_json(value: object) -> None:
     print(json.dumps(value, indent=2, ensure_ascii=False))
+
+
+def parse_json_object(value: str, option_name: str) -> dict:
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{option_name} must be valid JSON: {exc.msg}") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError(f"{option_name} must contain a JSON object")
+    return parsed
+
+
+def parse_nested_json_object(value: str, option_name: str) -> dict[str, dict]:
+    parsed = parse_json_object(value, option_name)
+    invalid = sorted(key for key, item in parsed.items() if not isinstance(item, dict))
+    if invalid:
+        raise ValueError(f"{option_name} values must be JSON objects: {', '.join(invalid)}")
+    return parsed
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -29,9 +29,21 @@ class CapsuleRunner:
         self.runs_dir = Path(runs_dir)
         self.artifacts = ArtifactStore(self.runs_dir)
 
-    def plan(self, capsule_id: str, *, target: str, profile: str = "safe") -> dict[str, Any]:
+    def plan(
+        self,
+        capsule_id: str,
+        *,
+        target: str,
+        profile: str = "safe",
+        arguments: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         capsule = self.registry.get(capsule_id)
-        return build_command_plan(capsule, target=target, profile_name=profile).to_dict()
+        return build_command_plan(
+            capsule,
+            target=target,
+            profile_name=profile,
+            arguments=arguments,
+        ).to_dict()
 
     def doctor(self, capsule_id: str | None = None) -> list[dict[str, Any]]:
         capsules = [self.registry.get(capsule_id)] if capsule_id else self.registry.list()
@@ -57,6 +69,7 @@ class CapsuleRunner:
         target: str,
         scope_file: Path | str,
         profile: str = "safe",
+        arguments: dict[str, Any] | None = None,
         execute: bool = False,
         fixture: Path | str | None = None,
         approval_file: Path | str | None = None,
@@ -65,7 +78,12 @@ class CapsuleRunner:
         max_output_bytes: int | None = None,
     ) -> RunResult:
         capsule = self.registry.get(capsule_id)
-        plan = build_command_plan(capsule, target=target, profile_name=profile)
+        plan = build_command_plan(
+            capsule,
+            target=target,
+            profile_name=profile,
+            arguments=arguments,
+        )
         scope = ScopePolicy.from_file(scope_file)
         approval = ScopePolicy.approval_from_file(approval_file) if approval_file else None
         profile_data = capsule.profile(profile)
@@ -73,7 +91,7 @@ class CapsuleRunner:
             target,
             action=plan.action,
             active=bool(profile_data.get("active", True)),
-            requested_rate_limit=plan.rate_limit,
+            requested_requests_per_second=plan.requests_per_second,
             requires_approval=plan.requires_approval,
             approval=approval,
             resolve_dns=execute,
@@ -181,6 +199,8 @@ class CapsuleRunner:
             observation=observation,
             dry_run=dry_run,
             status=status,
+            arguments=plan.arguments,
+            argument_sources=plan.argument_sources,
             target=target,
             normalized_target=decision.normalized_target,
             scope_decision=decision.to_dict(),

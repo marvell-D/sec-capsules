@@ -94,9 +94,12 @@ def capsule_to_public_dict(capsule: Capsule, detail_level: str = "brief") -> dic
                 key: {
                     "description": value.get("description", ""),
                     "requires_approval": bool(value.get("requires_approval", False)),
+                    "defaults": value.get("defaults", {}),
+                    "allowed_arguments": value.get("allowed_arguments", []),
                 }
                 for key, value in capsule.raw.get("profiles", {}).items()
             },
+            "input_schema": capsule.raw.get("input_schema", {}),
             "model_exposure": capsule.raw.get("model_exposure", {}),
             "next_actions": capsule.raw.get("next_actions", []),
         }
@@ -107,4 +110,3 @@ def capsule_to_public_dict(capsule: Capsule, detail_level: str = "brief") -> dic
 
 def capsule_rows(capsules: Iterable[Capsule]) -> list[tuple[str, str, str, str]]:
     return [(c.id, c.category, c.risk_level, c.summary) for c in capsules]
-

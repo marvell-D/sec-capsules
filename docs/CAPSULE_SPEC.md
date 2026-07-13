@@ -1,166 +1,216 @@
-# Capsule 格式规范（v0.1.1）
+# Capsule 格式规范（v0.1.2）
 
-Capsule 是 `sec-capsules` 的工具卡。它把某个外部安全工具的知识、可执行 profile、输出约定和模型暴露策略放在一个可发现的目录中。Core Runtime 不需要为每种工具硬编码命令行知识，只需要读取 Capsule、生成 argv、执行、存证和调用该工具自己的 parser。
+Capsule 是 `sec-capsules` 的工具知识与调用契约。它同时回答四个问题：工具适合做什么、模型可以选择哪些语义参数、Runtime 如何把参数编译成 argv、工具输出如何转成统一对象。
 
-本文描述当前已经实现的格式；它不是未来稳定 v1 规范的承诺。需要从零理解整体架构、函数和数据流时，先阅读[中文开发者手册](zh-CN/V0.1.1_开发者手册.md)。
+v0.1.2 的关键变化是把“固定 profile 命令”拆成：
+
+```text
+input_schema              模型能理解的参数知识和绝对边界
+profiles.defaults         未提供参数时使用的安全默认值
+profiles.allowed_arguments 当前 profile 允许模型修改的参数集合
+profiles.command          Runtime 控制的 argv 模板
+```
+
+详细实现见[v0.1.2 中文开发者手册](zh-CN/V0.1.2_开发者手册.md)。本格式仍是 pre-1.0 契约，后续可以演进。
 
 ## 1. 目录约定
 
-每个内置工具位于 `src/sec_capsules/capsules/<tool-id>/`：
-
 ```text
-capsules/<tool-id>/
-├── capsule.yml              # 必需：工具卡
-├── parser.py                # 必需：原始输出到统一对象的转换器
-├── fixtures/                # 建议：可复现的 JSONL/文本样本
-│   └── sample.jsonl
-└── templates/               # 可选：随包分发的工具专用模板
+src/sec_capsules/capsules/<tool-id>/
+├── capsule.yml              # 必需：知识、参数和调用契约
+├── parser.py                # 必需：原始输出到统一对象
+├── fixtures/sample.<format> # 必需：离线回归样本
+└── templates/               # 可选：随包分发的工具模板
 ```
 
-`pyproject.toml` 的 `package-data` 已包含上述 YAML、fixture 与 template，因此 editable install 和 wheel 安装后均可被 `CapsuleRegistry` 找到。不要在运行时依赖当前 shell 的工作目录来查找这些文件。
+目录名、`capsule.yml.id` 和 parser import 路径必须一致。包数据由 `pyproject.toml` 配置，不能依赖调用者当前工作目录。
 
-## 2. 工具卡字段
+## 2. 顶层字段
 
-`CapsuleRegistry.load()` 使用 `yaml.safe_load()` 读取 `capsule.yml`，并包装为不可变的 `Capsule(id, raw, root)` 数据类。下表列出当前工具卡应具备的字段。
+| 字段 | 含义 |
+|---|---|
+| `id`、`name`、`category`、`summary` | 唯一标识与能力概述。 |
+| `stage`、`risk_level` | Agent 检索与风险判断使用。 |
+| `best_for`、`avoid_when` | 渐进披露的使用知识。 |
+| `input_schema` | 模型可以提交的语义参数 Schema。 |
+| `profiles` | 安全预设、允许参数和 argv 模板。 |
+| `runtime` | binary、版本探测和输出上限。 |
+| `outputs`、`artifacts` | 结构化对象和原始产物声明。 |
+| `model_exposure` | 默认上下文暴露策略。 |
+| `next_actions` | 供上层考虑的后续动作标签，不自动执行。 |
 
-| 字段 | 类型 | 用途 |
-|---|---|---|
-| `id` | string | 全局唯一、与目录名及 parser 模块名一致的标识，例如 `httpx`。 |
-| `name` | string | 给人看的工具名称。 |
-| `category` | string | 能力分类，例如 `web-discovery`。 |
-| `summary` | string | 一句话说明工具产生什么信息。 |
-| `stage` | string | 在确定性流程中的阶段，例如 `discover`、`crawl`、`validate`。 |
-| `risk_level` | string | 工具整体风险标签，供渐进检索和 UI/Agent 判断。 |
-| `best_for` | string/list | 合适的使用场景。 |
-| `avoid_when` | string/list | 不适合使用的场景与限制。 |
-| `runtime` | mapping | 外部二进制和预检信息。 |
-| `profiles` | mapping | 不同受控调用方式；至少应有 `safe`。 |
-| `outputs` | list | 此工具声称会产生的标准对象类型。 |
-| `artifacts` | list | 原始产物说明，通常包括 stdout JSONL。 |
-| `model_exposure` | mapping | 面向模型的默认暴露策略说明。 |
-| `next_actions` | list | 观察到输出后可由上层考虑的下一步标签。 |
+`get_capsule(..., "brief")` 只返回发现信息；`usage` 额外返回 `input_schema`、profile 默认值和允许参数，但不返回 command；`full` 才返回完整 YAML。
 
-当前 Registry 没有在加载时用 JSON Schema 强制验证全部字段；错误字段可能在计划或解析时才暴露。v0.2 会补 Capsule conformance test，贡献者现在应主动保持字段齐全、一致。
+## 3. `input_schema`：模型参数知识
 
-## 3. `runtime`：二进制预检声明
-
-推荐结构如下：
+`input_schema` 使用 JSON Schema Draft 2020-12 的一个有意缩小的子集：
 
 ```yaml
-runtime:
-  binary: httpx
-  version_command: [httpx, -version]
-  max_output_bytes: 1048576
+input_schema:
+  type: object
+  additionalProperties: false
+  properties:
+    depth:
+      type: integer
+      description: Maximum crawl depth from the scoped starting URL.
+      minimum: 1
+      maximum: 5
+      x-agent-settable: true
+    requests_per_second:
+      type: integer
+      description: Maximum crawl requests per second for this invocation.
+      minimum: 1
+      maximum: 10
+      x-agent-settable: true
 ```
 
-| 子字段 | Runtime 行为 |
+### 3.1 支持的类型和约束
+
+| 类型 | 支持约束 |
 |---|---|
-| `binary` | `inspect_tool()` 用 `shutil.which()` 定位它；找不到时运行终态为 `preflight_failed`。 |
-| `version_command` | 预检执行的 argv。版本输出会写入 `RunResult.tool`，供审计和复现。 |
-| `max_output_bytes` | stdout 和 stderr 各自的内存保留上限。超过上限仍会继续排空 pipe，但记录 `output_truncated=true`。 |
+| `integer`、`number` | `minimum`、`maximum`、`enum`。 |
+| `string` | `minLength`、`maxLength`、`enum`。 |
+| `boolean` | 类型与 `enum`。 |
+| `array` | `minItems`、`maxItems`、`uniqueItems`、`items`。 |
 
-版本命令也必须是 argv 列表，不能写成 `"httpx -version"` 这样的 shell 字符串。Runtime 从不使用 `shell=True`。
+每个 property 必须有非空 `description`。`additionalProperties` 必须为 `false`，从协议层拒绝模型猜出的字段。扩展字段 `x-agent-settable: false` 表示即使 Schema 中有该字段，也只能由 Runtime/Operator 设置；当前内置 Capsule 直接不暴露锁定 flag，因此大多数 property 为 true。
 
-## 4. `profiles`：同一工具的受控调用面
+`core.arguments.validate_input_schema()` 只实现上述子集，避免 Core 强制依赖大型 JSON Schema 库。新增 Schema 关键字前必须同步扩展验证器和测试，不能假装已经支持。
 
-一个 profile 是工具卡中真正能被 Planner 选中的调用方案。当前 profile 使用的字段如下：
+### 3.2 不应放入 `input_schema` 的内容
+
+- `target`：由 `run_capsule` 顶层参数和 Scope 独立处理。
+- `-jsonl`、`-silent`：parser 与上下文管理依赖的输出不变量。
+- 输出文件路径：由 ArtifactStore 管理。
+- `$capsule_root`：Runtime 资源定位变量。
+- 任意 `extra_args`、原始 argv 或 shell 字符串。
+- 明文 token、cookie、密码；未来应使用受控 credential reference。
+
+## 4. `profiles`：默认值、开放面与锁定命令
 
 ```yaml
 profiles:
   safe:
-    description: 低风险 HTTP 存活探测。
-    active: false
-    action: discovery
+    description: Depth-limited JSONL crawl for one scoped target.
+    active: true
+    action: crawling
     requires_approval: false
-    rate_limit: 20
+    defaults:
+      depth: 2
+      requests_per_second: 10
+    allowed_arguments:
+      - depth
+      - requests_per_second
     command:
-      - httpx
-      - -json
+      - katana
+      - -jsonl
       - -silent
-      - -rl
-      - "$rate_limit"
+      - -depth
+      - $depth
+      - -fs
+      - fqdn
+      - -rate-limit
+      - $requests_per_second
       - -u
-      - "$target"
+      - $target
 ```
 
-| 子字段 | 类型 | 含义 |
-|---|---|---|
-| profile 名 | string | 命令行中的 `--profile` 值，例如 `safe`、`local_lab`。 |
-| `description` | string | 人和 Agent 在 `get_capsule(..., "usage")` 中看到的用途说明。 |
-| `active` | bool | 是否会主动发起更具侵入性的请求；Scope 的 `allow_active_scan` 会据此判定。 |
-| `action` | string | 审批与策略使用的动作标签，例如 `discovery`、`fuzzing`。 |
-| `requires_approval` | bool | 为真时，必须提供覆盖本次目标与 action 的审批记录。 |
-| `rate_limit` | int | 声明请求速率，Planner 会放入模板变量，Scope 会做上限比较。 |
-| `severity` | list[string]，可选 | Nuclei 之类工具需要的严重程度过滤；会作为 `$severity` 变量提供。 |
-| `vars` | mapping，可选 | Capsule 自定义的模板变量。 |
-| `command` | list[string] | 实际 argv 模板。每一个列表元素是一个参数，不是整段 shell。 |
-
-### 4.1 模板变量
-
-`core/planner.py` 的 `build_command_plan()` 使用 `string.Template` 展开如下变量：
-
-| 变量 | 值来自 |
+| 字段 | 责任 |
 |---|---|
-| `$target` | 调用者传入的目标字符串。 |
-| `$rate_limit` | 当前 profile 的 `rate_limit`。 |
-| `$severity` | profile `severity` 用逗号连接后的字符串。 |
-| `$capsule_root` | 当前 Capsule 目录的绝对路径。 |
-| `$<vars 中的键>` | profile 自定义变量。 |
+| `description` | 告诉模型这个预设适合什么。 |
+| `active` | 参与 Scope 的 active scan 判定。 |
+| `action` | 参与 policy 与 approval 匹配。 |
+| `requires_approval` | 强制要求审批记录。 |
+| `defaults` | 调用者未提供时使用的值。它们也必须通过 `input_schema`。 |
+| `allowed_arguments` | 当前 profile 允许调用者覆盖的参数白名单。 |
+| `command` | argv token 模板；固定 token 对模型不可修改。 |
 
-`$capsule_root` 的存在是为了支持随包分发的局部模板。例如 Nuclei 的 `local_lab` profile 指向 `templates/local-juice-shop.yaml`，而不是依赖调用者机器上的相对路径。
+一个参数即使存在于顶层 Schema，如果不在当前 profile 的 `allowed_arguments` 中，也会被拒绝。例如 Nuclei `severity` 可用于 `safe`，但不能用于只允许本地固定模板的 `local_lab`。
 
-### 4.2 速率字段的现有限制
+## 5. 参数解析和优先级
 
-Scope 配置当前把上限字段命名为 `max_requests_per_minute`，但 ProjectDiscovery 当前常用的 `-rl` 参数是每秒请求数。v0.1.1 仅比较数值，未完成单位转换。贡献者不得把它描述为精确 RPM 限流；v0.2 会统一单位或更名字段。
+`resolve_arguments(capsule, profile, provided)` 执行：
 
-## 5. Parser 契约
+1. 校验 Schema、profile defaults 和 allowed list 的基本形状。
+2. 拒绝 Schema 未声明的 provided 字段。
+3. 拒绝当前 profile 未允许或 `x-agent-settable: false` 的字段。
+4. 深拷贝 profile defaults，再覆盖模型 provided values。
+5. 对最终值执行类型、范围、枚举和数组约束。
+6. 为每个生效值记录来源：`agent` 或 `profile_default`。
 
-每个 Capsule 必须提供 `parser.py`，暴露下面完全一致的函数签名：
+优先级可以写成：
+
+```text
+profile default < agent provided value < Schema/profile/Scope 拒绝边界
+```
+
+这里的“边界”不是更高优先级的静默覆盖。模型请求越界时 Runtime 会拒绝，而不是偷偷把 100 改成 10；这样上层能看到真实错误并修复计划。
+
+## 6. argv 编译
+
+`build_command_plan()` 只把四类变量交给 `string.Template.substitute()`：
+
+| 变量 | 来源 |
+|---|---|
+| `$target` | 调用顶层 target。 |
+| `$capsule_root` | Runtime 解析的 Capsule 绝对目录。 |
+| `$<argument>` | `resolve_arguments()` 已验证的最终值。 |
+| 数组参数 | 由 `template_value()` 以逗号连接。 |
+
+使用严格 `substitute()` 而不是 `safe_substitute()`：command 引用了未定义变量时立即报错，不能把 `$unknown` 原样传给外部工具。
+
+最终结果是 `CommandPlan`：
+
+```json
+{
+  "capsule_id": "katana",
+  "profile": "safe",
+  "arguments": {"depth": 1, "requests_per_second": 3},
+  "argument_sources": {"depth": "agent", "requests_per_second": "agent"},
+  "command": ["katana", "-jsonl", "-silent", "-depth", "1", "-fs", "fqdn", "-rate-limit", "3", "-u", "https://example.com"]
+}
+```
+
+它仍只是计划。真实执行继续经过 Scope、approval、DNS、binary preflight 和 MCP host gate。
+
+## 7. 速率单位
+
+内置工具参数统一命名为 `requests_per_second`，Scope 使用：
+
+```yaml
+scope:
+  max_requests_per_second: 10
+```
+
+v0.1.1 的 `max_requests_per_minute` 暂时兼容，但会除以 60 后再与工具每秒速率比较。例如 60 RPM 等价于 1 request/second，不再错误地允许 60 requests/second。v0.2 计划移除旧字段。
+
+## 8. Parser 与输出契约
+
+每个 `parser.py` 暴露：
 
 ```python
 def parse(raw_text: str, *, run_id: str, artifact_name: str) -> dict[str, object]:
     ...
 ```
 
-`core.parsers.parse_capsule_output()` 会动态导入 `sec_capsules.capsules.<id>.parser` 并调用它。返回的字典必须始终含有以下四个列表，即使其中某类没有结果：
+返回字典始终含 `services`、`endpoints`、`findings`、`evidence` 四个列表。Parser 不执行网络操作；应容忍坏行和截断尾行；每个可行动对象保留 `artifact://...#Lx` evidence ref。
 
-```python
-{
-    "services": [],
-    "endpoints": [],
-    "findings": [],
-    "evidence": [],
-}
+原始 stdout/stderr 属于 artifact；parser 结果属于 structured objects；模型默认消费 ObservationPacket。三层不能混在一起。
+
+## 9. Conformance 要求
+
+`tests/test_capsule_conformance.py` 会对每个内置 Capsule：
+
+- 调用 `validate_input_schema()`。
+- 验证每个 profile 的 defaults 与 allowed arguments。
+- 用默认值编译每个 profile。
+- 确保 argv 非空且没有残留 `$variable`。
+
+新增 Capsule 还必须补参数正向/负向测试、parser fixture 测试，并在必要时增加 Scope 和本地 E2E。提交前运行：
+
+```bash
+scripts/ci.sh
+python -m build
 ```
 
-当前三个 parser 均把 JSONL 按行解析，跳过无效行，并使用 `artifact://<run>/artifacts/<name>#L<line>` 作为 evidence reference。这样一条 finding 可以回到原始证据，而不会把整份原始输出复制到模型上下文。
-
-| Capsule | 主输出 |
-|---|---|
-| `httpx` | HTTP `service`、`endpoint`、`evidence`。 |
-| `katana` | 去重后的 `endpoint`、`evidence`。 |
-| `nuclei` | `finding`、`evidence`。 |
-
-新 parser 应满足：不执行网络操作；不依赖环境状态；对 banner、坏行和截断尾行尽量容错；为每个可行动对象保留 evidence ref；以 fixture 配套单元测试。
-
-## 6. `outputs`、`artifacts` 与模型暴露
-
-Capsule 不直接把原始扫描结果交给 Agent。数据按三层分离：
-
-1. `artifacts`：stdout/stderr 等原始证据，`ArtifactStore` 保存文件、SHA-256 与元数据。
-2. `outputs`：parser 生成的 `service`、`endpoint`、`finding`、`evidence` 等统一对象。
-3. `ObservationPacket`：`build_observation_packet()` 依据 token budget 从结构化结果中生成摘要。
-
-`model_exposure` 和 `next_actions` 是工具卡中的知识层说明，帮助上层先理解能力再决定是否请求完整详情。这是本项目“渐进披露”的基础：先检索 Capsule，再看 usage，再看 full，执行后默认只看 Observation，需要时才经 `get_artifact` 读取受限证据片段。
-
-## 7. 新增 Capsule 的最小检查单
-
-- 选择稳定、合法场景明确的外部工具；不要把自动化利用或目标扩张包装成默认 profile。
-- 创建目录、`capsule.yml`、`parser.py` 和至少一份无敏感数据 fixture。
-- 所有命令必须是 argv 列表，并提供合理的输出 JSON/JSONL 模式。
-- 为 `runtime` 写真实的 binary 与 version command；不要假设工具总在 PATH。
-- 声明 profile 的 `active`、`action`、`requires_approval` 和速率。
-- 为 parser 增加 `tests/test_parsers.py` 覆盖，必要时增加 Scope/Runner 测试。
-- 执行 `scripts/ci.sh`；涉及真实执行时，只对自有本机靶场运行 `scripts/e2e-local.sh`。
-
-详细贡献要求见仓库根目录的[贡献指南](../CONTRIBUTING.md)。
+更完整的贡献清单见[贡献指南](../CONTRIBUTING.md)。

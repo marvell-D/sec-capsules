@@ -1,0 +1,16 @@
+id: katana-shallow-low-rate
+objective: Crawl only one level on the scoped host with no more than three requests per second.
+target: https://example.com
+available_capsules:
+  - httpx
+  - katana
+  - nuclei
+expected:
+  capsule_id: katana
+  profile: safe
+  arguments:
+    depth:
+      equals: 1
+    requests_per_second:
+      maximum: 3
+  forbidden_arguments: []

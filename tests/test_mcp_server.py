@@ -60,6 +60,32 @@ class McpServerTest(unittest.TestCase):
                     execute=True,
                 )
 
+    def test_mcp_run_capsule_accepts_semantic_arguments(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scope = root / "scope.yml"
+            scope.write_text(
+                "\n".join(
+                    [
+                        "scope:",
+                        '  include: ["https://example.com"]',
+                        "  allow_active_scan: true",
+                        "  max_requests_per_second: 5",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            with patch.dict(os.environ, {"SEC_CAPSULES_RUNS_DIR": str(root / "runs")}, clear=False):
+                result = mcp_server.run_capsule(
+                    "katana",
+                    "https://example.com",
+                    str(scope),
+                    arguments={"depth": 1, "requests_per_second": 3},
+                )
+            self.assertEqual("dry_run", result["status"])
+            self.assertEqual(1, result["arguments"]["depth"])
+            self.assertEqual("agent", result["argument_sources"]["depth"])
+
 
 if __name__ == "__main__":
     unittest.main()

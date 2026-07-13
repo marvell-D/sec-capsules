@@ -17,8 +17,10 @@ class RegistryTest(unittest.TestCase):
         self.assertEqual("nuclei", usage["id"])
         self.assertIn("best_for", usage)
         self.assertIn("profiles", usage)
+        self.assertIn("input_schema", usage)
+        self.assertIn("severity", usage["input_schema"]["properties"])
+        self.assertNotIn("command", str(usage))
 
 
 if __name__ == "__main__":
     unittest.main()
-

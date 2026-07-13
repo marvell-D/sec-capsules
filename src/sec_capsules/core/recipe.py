@@ -29,6 +29,7 @@ def run_recipe(
     target: str,
     scope_file: str | Path,
     profile: str = "safe",
+    arguments_by_step: dict[str, dict[str, Any]] | None = None,
     execute: bool = False,
     fixtures: dict[str, str] | None = None,
     approval_file: str | Path | None = None,
@@ -40,6 +41,14 @@ def run_recipe(
     ordered_steps = order_steps(recipe.get("steps", []))
     runner = CapsuleRunner(runs_dir=runs_dir)
     fixtures = fixtures or {}
+    arguments_by_step = arguments_by_step or {}
+    step_ids = {str(step["id"]) for step in ordered_steps}
+    unknown_argument_steps = sorted(set(arguments_by_step) - step_ids)
+    if unknown_argument_steps:
+        raise ValueError(
+            "arguments_by_step references unknown recipe steps: "
+            + ", ".join(unknown_argument_steps)
+        )
     entries: list[dict[str, Any]] = []
     completed: dict[str, dict[str, Any]] = {}
 
@@ -65,6 +74,7 @@ def run_recipe(
                 target=target,
                 scope_file=scope_file,
                 profile=str(step.get("profile", profile)),
+                arguments=arguments_by_step.get(step_id),
                 execute=execute,
                 fixture=fixtures.get(str(step["capsule"])),
                 approval_file=approval_file,
@@ -77,6 +87,8 @@ def run_recipe(
                 "run_id": result.run_id,
                 "depends_on": dependencies,
                 "status": result.status,
+                "arguments": result.arguments,
+                "argument_sources": result.argument_sources,
                 "observation": result.observation,
                 "artifact_refs": [
                     f"artifact://{result.run_id}/artifacts/{Path(artifact.path).name}"

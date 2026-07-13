@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "InvocationRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["capsule_id", "target"],
+  "properties": {
+    "capsule_id": {"type": "string"},
+    "target": {"type": "string"},
+    "profile": {"type": "string", "default": "safe"},
+    "arguments": {"type": "object", "default": {}},
+    "execute": {"type": "boolean", "default": false}
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "capsule_id": "katana",
+  "target": "https://example.com",
+  "profile": "safe",
+  "arguments": {
+    "depth": 1,
+    "requests_per_second": 3
+  }
+}
