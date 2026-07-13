@@ -1,6 +1,6 @@
 {"input":{"FFUFHASH":"a1","FUZZ":"api"},"position":1,"status":200,"length":245,"words":12,"lines":8,"content-type":"application/json","redirectlocation":"","url":"http://127.0.0.1:8888/api"}
 {"input":{"FFUFHASH":"a2","FUZZ":"api/v1"},"position":2,"status":200,"length":512,"words":20,"lines":14,"content-type":"application/json","redirectlocation":"","url":"http://127.0.0.1:8888/api/v1"}
-{"input":{"FFUFHASH":"a3","FUZZ":"api/v2"},"position":3,"status":404,"length":87,"words":8,"lines":3,"content-type":"application/json","redirectlocation":"","url":"http://127.0.0.1:8888/api/v2"}
+{"input":{"FFUFHASH":"a3","FUZZ":"api/v2"},"position":3,"status":405,"length":87,"words":8,"lines":3,"content-type":"application/json","redirectlocation":"","url":"http://127.0.0.1:8888/api/v2"}
 {"input":{"FFUFHASH":"a4","FUZZ":"assets"},"position":4,"status":301,"length":0,"words":1,"lines":1,"content-type":"text/html","redirectlocation":"/assets/","url":"http://127.0.0.1:8888/assets"}
 {"input":{"FFUFHASH":"a5","FUZZ":"docs"},"position":5,"status":200,"length":4096,"words":221,"lines":95,"content-type":"text/html","redirectlocation":"","url":"http://127.0.0.1:8888/docs"}
 {"input":{"FFUFHASH":"a6","FUZZ":"health"},"position":6,"status":200,"length":17,"words":2,"lines":1,"content-type":"application/json","redirectlocation":"","url":"http://127.0.0.1:8888/health"}
