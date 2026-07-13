@@ -91,7 +91,7 @@ class CapsuleRunner:
             target,
             action=plan.action,
             active=bool(profile_data.get("active", True)),
-            requested_requests_per_second=plan.requests_per_second,
+            requested_rate_limit=plan.rate_limit,
             requires_approval=plan.requires_approval,
             approval=approval,
             resolve_dns=execute,
@@ -167,7 +167,7 @@ class CapsuleRunner:
             )
 
         structured = (
-            {"services": [], "endpoints": [], "findings": [], "evidence": []}
+            {"assets": [], "services": [], "endpoints": [], "findings": [], "evidence": []}
             if status == "preflight_failed"
             else parse_capsule_output(capsule, raw_stdout, run_id=run_id, artifact_name=artifact_name)
         )
@@ -201,6 +201,7 @@ class CapsuleRunner:
             status=status,
             arguments=plan.arguments,
             argument_sources=plan.argument_sources,
+            rate_limit=plan.rate_limit.to_dict() if plan.rate_limit else None,
             target=target,
             normalized_target=decision.normalized_target,
             scope_decision=decision.to_dict(),

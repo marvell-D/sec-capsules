@@ -1,0 +1,11 @@
+scope:
+  include:
+    - "127.0.0.1"
+  exclude: []
+  max_rates:
+    packets_per_second: 30
+  allow_private_ip: true
+  allow_active_scan: true
+  require_approval_for:
+    - port_scan
+    - service_version_scan

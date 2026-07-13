@@ -58,6 +58,56 @@ class ScopeTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "greater than zero"):
             ScopePolicy({"scope": {"max_requests_per_second": 0}})
 
+    def test_enforces_generic_rate_units_and_fails_closed_for_unknown_units(self) -> None:
+        policy = ScopePolicy(
+            {
+                "scope": {
+                    "include": ["127.0.0.1"],
+                    "allow_private_ip": True,
+                    "max_rates": {"packets_per_second": 40},
+                }
+            }
+        )
+        allowed = policy.decide(
+            "127.0.0.1",
+            requested_rate_limit={
+                "argument": "packets_per_second",
+                "value": 25,
+                "unit": "packets_per_second",
+            },
+        )
+        denied = policy.decide(
+            "127.0.0.1",
+            requested_rate_limit={
+                "argument": "packets_per_second",
+                "value": 50,
+                "unit": "packets_per_second",
+            },
+        )
+        unknown = policy.decide(
+            "127.0.0.1",
+            requested_rate_limit={
+                "argument": "connections_per_second",
+                "value": 1,
+                "unit": "connections_per_second",
+            },
+        )
+        self.assertTrue(allowed.allowed, allowed.reasons)
+        self.assertFalse(denied.allowed)
+        self.assertFalse(unknown.allowed)
+        self.assertIn("does not define", " ".join(unknown.reasons))
+
+    def test_rejects_conflicting_legacy_and_generic_rate_limits(self) -> None:
+        with self.assertRaisesRegex(ValueError, "conflicting"):
+            ScopePolicy(
+                {
+                    "scope": {
+                        "max_rates": {"requests_per_second": 5},
+                        "max_requests_per_second": 10,
+                    }
+                }
+            )
+
     def test_requires_target_bound_approval_record(self) -> None:
         policy = ScopePolicy(
             {"scope": {"include": ["example.com"], "require_approval_for": ["credentialed_scan"]}}

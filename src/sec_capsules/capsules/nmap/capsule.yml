@@ -1,0 +1,134 @@
+id: nmap
+name: Nmap
+category: service_discovery
+summary: Bounded TCP port and service discovery for one explicitly scoped host.
+stage:
+  - asset_discovery
+  - service_discovery
+risk_level: active_low_to_medium
+
+best_for:
+  - Confirm which TCP services are exposed by one authorized host.
+  - Produce stable asset and service objects from Nmap XML.
+  - Prepare a compact service inventory for downstream WebSec decisions.
+
+avoid_when:
+  - The target is not explicitly authorized for active port scanning.
+  - A network range or autonomous target expansion is required.
+  - Full NSE script execution or vulnerability exploitation is expected.
+
+input_schema:
+  type: object
+  additionalProperties: false
+  properties:
+    ports:
+      type: array
+      description: Explicit TCP ports to check on the single scoped target.
+      minItems: 1
+      maxItems: 64
+      uniqueItems: true
+      items:
+        type: integer
+        minimum: 1
+        maximum: 65535
+      x-agent-settable: true
+    packets_per_second:
+      type: integer
+      description: Maximum packet transmission rate requested for this invocation.
+      minimum: 1
+      maximum: 200
+      x-agent-settable: true
+      x-rate-limit-unit: packets_per_second
+
+profiles:
+  safe:
+    description: TCP connect scan of a small explicit port set without version probes.
+    active: true
+    action: port_scan
+    requires_approval: true
+    defaults:
+      ports:
+        - 80
+        - 443
+        - 8080
+        - 8443
+      packets_per_second: 50
+    allowed_arguments:
+      - ports
+      - packets_per_second
+    command:
+      - nmap
+      - -sT
+      - -Pn
+      - -n
+      - --reason
+      - --max-retries
+      - "2"
+      - --host-timeout
+      - 60s
+      - --max-rate
+      - $packets_per_second
+      - -p
+      - $ports
+      - -oX
+      - "-"
+      - $target
+  service:
+    description: Light service-version detection on a small explicitly approved port set.
+    active: true
+    action: service_version_scan
+    requires_approval: true
+    defaults:
+      ports:
+        - 80
+        - 443
+        - 8080
+        - 8443
+      packets_per_second: 30
+    allowed_arguments:
+      - ports
+      - packets_per_second
+    command:
+      - nmap
+      - -sT
+      - -sV
+      - --version-light
+      - -Pn
+      - -n
+      - --reason
+      - --max-retries
+      - "2"
+      - --host-timeout
+      - 90s
+      - --max-rate
+      - $packets_per_second
+      - -p
+      - $ports
+      - -oX
+      - "-"
+      - $target
+
+runtime:
+  binary: nmap
+  version_command:
+    - nmap
+    - --version
+  max_output_bytes: 1048576
+
+outputs:
+  structured:
+    - asset.v1
+    - service.v1
+    - evidence.v1
+
+artifacts:
+  primary: nmap.xml
+  content_type: application/xml
+
+model_exposure:
+  default: observation_only
+  max_tokens: 800
+
+next_actions:
+  - probe_http_services
+  - inspect_service_evidence

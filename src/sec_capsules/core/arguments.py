@@ -4,7 +4,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
-from sec_capsules.core.models import Capsule
+from sec_capsules.core.models import Capsule, RateLimit
 
 
 SUPPORTED_TYPES = {"array", "boolean", "integer", "number", "string"}
@@ -101,6 +101,7 @@ def validate_input_schema(capsule: Capsule) -> None:
     properties = schema.get("properties", {})
     if not isinstance(properties, dict):
         raise ValueError(f"capsule {capsule.id} input_schema.properties must be an object")
+    rate_arguments: list[str] = []
     for name, spec in properties.items():
         if not isinstance(spec, dict):
             raise ValueError(f"argument schema {name!r} must be an object")
@@ -111,10 +112,22 @@ def validate_input_schema(capsule: Capsule) -> None:
             raise ValueError(f"argument {name!r} must include a description")
         if "x-agent-settable" in spec and not isinstance(spec["x-agent-settable"], bool):
             raise ValueError(f"argument {name!r} x-agent-settable must be boolean")
+        if "x-rate-limit-unit" in spec:
+            unit = spec["x-rate-limit-unit"]
+            if value_type not in {"integer", "number"}:
+                raise ValueError(f"rate argument {name!r} must use an integer or number type")
+            if not isinstance(unit, str) or not unit.strip():
+                raise ValueError(f"argument {name!r} x-rate-limit-unit must be a non-empty string")
+            rate_arguments.append(name)
         if value_type == "array":
             item_spec = spec.get("items")
             if not isinstance(item_spec, dict) or item_spec.get("type") not in SUPPORTED_TYPES:
                 raise ValueError(f"array argument {name!r} must define a supported items type")
+
+    if len(rate_arguments) > 1:
+        raise ValueError(
+            f"capsule {capsule.id} declares multiple rate arguments: {', '.join(rate_arguments)}"
+        )
 
     required = schema.get("required", [])
     if not isinstance(required, list) or not all(isinstance(name, str) for name in required):
@@ -127,6 +140,27 @@ def validate_input_schema(capsule: Capsule) -> None:
 
     for profile_name in capsule.raw.get("profiles", {}):
         resolve_arguments(capsule, str(profile_name))
+
+
+def resolve_rate_limit(capsule: Capsule, values: dict[str, Any]) -> RateLimit | None:
+    properties = capsule.raw.get("input_schema", {}).get("properties", {})
+    rate_arguments = [
+        (name, spec)
+        for name, spec in properties.items()
+        if isinstance(spec, dict) and spec.get("x-rate-limit-unit")
+    ]
+    if len(rate_arguments) > 1:
+        raise ValueError(f"capsule {capsule.id} must declare at most one rate argument")
+    if not rate_arguments:
+        return None
+
+    name, spec = rate_arguments[0]
+    if name not in values:
+        return None
+    value = values[name]
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise ValueError(f"rate argument {name!r} must resolve to a number")
+    return RateLimit(argument=name, value=value, unit=str(spec["x-rate-limit-unit"]))
 
 
 def validate_value(name: str, value: Any, spec: dict[str, Any]) -> None:

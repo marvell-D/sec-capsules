@@ -30,7 +30,7 @@ tests/test_<tool-or-area>.py
 4. 每个 profile 的 `defaults` 与 `allowed_arguments`；不要提供任意 `extra_args` 后门。
 5. `runtime.binary`、版本探测命令和输出大小上限。
 6. 原始 artifact 名称与 content type。
-7. parser 产生的统一 `service`、`endpoint`、`finding`、`evidence` 对象。
+7. parser 始终返回 `assets`、`services`、`endpoints`、`findings`、`evidence` 五个列表。
 8. 参数校验、fixture、错误行、重复结果、Scope 和 Observation 测试。
 9. 已授权的本机 E2E 方案；不要把第三方目标放进 CI。
 
@@ -41,6 +41,6 @@ scripts/ci.sh
 python -m build
 ```
 
-`tests/test_capsule_conformance.py` 会自动检查所有 profile 的默认参数能否通过 Schema 并编译为不含残留模板变量的 CommandPlan。模型行为场景放在 `evals/`，不得把模型 SDK 加入 Core Runtime。
+`tests/test_capsule_conformance.py` 会自动检查 metadata、runtime、fixture、parser 五类输出，以及所有 profile 的默认参数能否通过 Schema 并编译为不含残留模板变量的 CommandPlan。速率参数必须声明 `x-rate-limit-unit`，并在测试 Scope 中配置相同单位。模型行为场景放在 `evals/`，不得把模型 SDK 加入 Core Runtime。
 
-更详细的结构与设计理由见 [v0.1.2 中文开发者手册](docs/zh-CN/V0.1.2_开发者手册.md)。
+更详细的结构与设计理由见 [v0.2.0a1 中文开发者手册](docs/zh-CN/V0.2.0a1_开发者手册.md)。

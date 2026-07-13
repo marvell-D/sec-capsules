@@ -1,0 +1,8 @@
+approval:
+  id: apr_crapi_local_nmap
+  approved_by: local-e2e-operator
+  actions:
+    - port_scan
+    - service_version_scan
+  targets:
+    - "127.0.0.1"

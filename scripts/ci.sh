@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-python -m compileall src tests
-python -m unittest discover -s tests -v
+python_bin=${PYTHON:-python3}
 
+"$python_bin" -m compileall src tests
+"$python_bin" -m unittest discover -s tests -v

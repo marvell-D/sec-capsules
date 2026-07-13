@@ -16,17 +16,18 @@
   -> token 预算化 ObservationPacket
 ```
 
-## 当前版本：v0.1.2
+## 当前版本：v0.2.0a1
 
 当前的 WebSec Capsule Pack 包含：
 
 - `httpx`：HTTP 服务探测。
 - `katana`：受限深度的端点收集。
 - `nuclei`：模板化基线扫描；另有仅用于本机 Juice Shop E2E 的 `local_lab` profile。
+- `nmap`：明确端口集合的 TCP connect/service 探测；不开放原始 argv、端口范围或 NSE 脚本。
 
-v0.1.2 在 v0.1.1 执行门槛上补齐了 Agent 参数协议：`get_capsule(..., usage)` 会披露标准 `input_schema`、profile 默认值和允许参数；模型通过 `arguments` 提交语义值；Runtime 完成类型、范围、枚举和 profile 权限校验后才编译 argv。新增的离线 Eval Harness 可以给任何模型生成的候选 JSON 评分，不依赖完整 Agent 框架。
+v0.2.0a1 是 v0.2 的第一个预发布切片：新增 Nmap XML Capsule，把统一输出扩展到 asset/service，并把速率限制抽象为带单位的 `RateLimit`。本版还增加 SiliconFlow 两阶段模型评测 adapter 和仅手动触发的本机 crAPI Nmap E2E。FFUF、高基数压缩和 v0.2 的完整导出目标仍未完成，因此不宣称 v0.2 已完成。
 
-完整的参数链路、逐函数代码说明和测试设计，请阅读：[v0.1.2 中文开发者手册](docs/zh-CN/V0.1.2_开发者手册.md)。v0.1.1 的执行 Runtime 说明仍保留在[上一版手册](docs/zh-CN/V0.1.1_开发者手册.md)。
+当前实现的逐层讲解见 [v0.2.0a1 中文开发者手册](docs/zh-CN/V0.2.0a1_开发者手册.md)。参数协议的形成过程见 [v0.1.2 手册](docs/zh-CN/V0.1.2_开发者手册.md)。
 
 ## 快速开始
 
@@ -95,6 +96,14 @@ scripts/e2e-local.sh
 
 GitHub Actions 中的 `Local E2E` workflow 是手动触发的，不会随普通 push 自动扫描。
 
+Nmap 跨协议切片使用本机 crAPI：
+
+```bash
+scripts/e2e-crapi-nmap.sh
+```
+
+该脚本会把官方 crAPI compose 固定到已审阅的源码提交、绑定 `127.0.0.1`、执行经审批的四端口 service profile，并在结束时删除本次容器和 volume。它需要 Docker Compose、Nmap 和较大的临时镜像空间，也只允许手动触发。
+
 ## 接口
 
 - CLI：适合本机调试、脚本与 CI。
@@ -129,8 +138,20 @@ python -m sec_capsules.evals.cli benchmark \
 
 Planner 时间基准只生成报告，不作为 CI 的固定毫秒阈值。PR CI 使用确定性契约测试；真实模型评估由外部调用者把候选 JSON 交给 Harness。
 
+SiliconFlow adapter 位于 Eval 层而不是 Core。密钥只能由环境变量提供：
+
+```bash
+export SILICONFLOW_API_KEY='replace-with-a-rotated-secret'
+python -m sec_capsules.evals.cli siliconflow-models
+python -m sec_capsules.evals.cli siliconflow-grade \
+  --scenario evals/scenarios/nmap-crapi-services.yml
+```
+
+adapter 先用 brief 卡选工具，再只披露被选中工具的 usage 卡生成参数，最后由本地 Harness 评分；模型不能提交原始命令。
+
 ## 文档导航
 
+- [v0.2.0a1 中文开发者手册](docs/zh-CN/V0.2.0a1_开发者手册.md)
 - [v0.1.2 中文开发者手册](docs/zh-CN/V0.1.2_开发者手册.md)
 - [v0.1.1 中文开发者手册](docs/zh-CN/V0.1.1_开发者手册.md)
 - [Capsule 格式规范](docs/CAPSULE_SPEC.md)

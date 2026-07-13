@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nmaprun scanner="nmap" args="nmap -sT -sV --version-light -p 5500,8025,8443,8888,9999 -oX - 127.0.0.1" start="1783950000" version="7.95" xmloutputversion="1.05">
+<scaninfo type="connect" protocol="tcp" numservices="5" services="5500,8025,8443,8888,9999"/>
+<host starttime="1783950001" endtime="1783950003">
+<status state="up" reason="user-set" reason_ttl="0"/>
+<address addr="127.0.0.1" addrtype="ipv4"/>
+<hostnames><hostname name="localhost" type="PTR"/></hostnames>
+<ports>
+<port protocol="tcp" portid="5500"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="http" product="Werkzeug httpd" version="3.1.3" method="probed" conf="10"><cpe>cpe:/a:palletsprojects:werkzeug:3.1.3</cpe></service></port>
+<port protocol="tcp" portid="8025"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="http" product="MailHog" method="probed" conf="10"/></port>
+<port protocol="tcp" portid="8443"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="http" product="nginx" tunnel="ssl" method="probed" conf="10"/></port>
+<port protocol="tcp" portid="8888"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="http" product="nginx" version="1.27.4" method="probed" conf="10"><cpe>cpe:/a:igor_sysoev:nginx:1.27.4</cpe></service></port>
+<port protocol="tcp" portid="9999"><state state="closed" reason="conn-refused" reason_ttl="0"/></port>
+</ports>
+</host>
+<runstats><finished time="1783950003" elapsed="2.00" summary="Nmap done" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>

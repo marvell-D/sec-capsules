@@ -8,6 +8,7 @@ from sec_capsules.core.observation import build_observation_packet
 class ObservationTest(unittest.TestCase):
     def test_observation_respects_small_budget(self) -> None:
         structured = {
+            "assets": [{"type": "asset.v1", "value": "example.com"}],
             "findings": [
                 {
                     "title": f"Finding {idx}",
@@ -29,8 +30,8 @@ class ObservationTest(unittest.TestCase):
         )
         self.assertLessEqual(packet["budget"]["estimated_tokens"], 120)
         self.assertTrue(packet["hidden_from_model"]["raw_output"])
+        self.assertFalse(packet["hidden_from_model"]["secrets_redacted"])
 
 
 if __name__ == "__main__":
     unittest.main()
-

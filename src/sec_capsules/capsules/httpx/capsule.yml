@@ -27,6 +27,7 @@ input_schema:
       minimum: 1
       maximum: 20
       x-agent-settable: true
+      x-rate-limit-unit: requests_per_second
 
 profiles:
   safe:

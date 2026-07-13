@@ -44,5 +44,10 @@ def parse(raw_text: str, *, run_id: str, artifact_name: str) -> dict[str, Any]:
             }
         )
 
-    return {"services": [], "endpoints": endpoints, "findings": [], "evidence": evidence}
-
+    return {
+        "assets": [],
+        "services": [],
+        "endpoints": endpoints,
+        "findings": [],
+        "evidence": evidence,
+    }

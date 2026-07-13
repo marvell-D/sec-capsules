@@ -22,7 +22,9 @@ done
 curl -fsS http://127.0.0.1:3000/ >/dev/null
 
 cd "$repo_root"
-sec-capsules --runs-dir "$runs_dir" doctor --require
+sec-capsules --runs-dir "$runs_dir" doctor httpx --require
+sec-capsules --runs-dir "$runs_dir" doctor katana --require
+sec-capsules --runs-dir "$runs_dir" doctor nuclei --require
 sec-capsules --runs-dir "$runs_dir" recipe run web-recon-local-lab \
   --target http://127.0.0.1:3000 \
   --scope examples/juice-shop-local/scope.yml \

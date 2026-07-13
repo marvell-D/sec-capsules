@@ -14,8 +14,7 @@
   ],
   "hidden_from_model": {
     "raw_output": true,
-    "secrets_redacted": true,
+    "secrets_redacted": false,
     "artifact_drilldown_required": true
   }
 }
-

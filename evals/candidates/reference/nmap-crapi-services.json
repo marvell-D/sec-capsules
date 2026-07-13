@@ -1,0 +1,9 @@
+{
+  "capsule_id": "nmap",
+  "target": "127.0.0.1",
+  "profile": "service",
+  "arguments": {
+    "ports": [5500, 8025, 8443, 8888],
+    "packets_per_second": 20
+  }
+}

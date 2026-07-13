@@ -4,7 +4,8 @@ scope:
     - "localhost:3000"
     - "http://127.0.0.1:3000"
   exclude: []
-  max_requests_per_second: 20
+  max_rates:
+    requests_per_second: 20
   allow_private_ip: true
   allow_active_scan: true
   require_approval_for:

@@ -13,7 +13,9 @@ class ParserTest(unittest.TestCase):
 
     def read_fixture(self, capsule_id: str) -> str:
         capsule = self.registry.get(capsule_id)
-        return (capsule.root / "fixtures" / "sample.jsonl").read_text(encoding="utf-8")
+        artifact_name = str(capsule.raw.get("artifacts", {}).get("primary", "sample.jsonl"))
+        fixture_name = f"sample{Path(artifact_name).suffix}"
+        return (capsule.root / "fixtures" / fixture_name).read_text(encoding="utf-8")
 
     def test_httpx_parser_outputs_services(self) -> None:
         capsule = self.registry.get("httpx")
@@ -47,7 +49,33 @@ class ParserTest(unittest.TestCase):
         self.assertEqual(2, len(structured["findings"]))
         self.assertTrue(structured["findings"][0]["evidence_refs"][0].endswith("#L1"))
 
+    def test_nmap_parser_outputs_assets_services_and_line_evidence(self) -> None:
+        capsule = self.registry.get("nmap")
+        structured = parse_capsule_output(
+            capsule,
+            self.read_fixture("nmap"),
+            run_id="run_test",
+            artifact_name="nmap.xml",
+        )
+        self.assertEqual(1, len(structured["assets"]))
+        self.assertEqual("127.0.0.1", structured["assets"][0]["value"])
+        self.assertEqual(4, len(structured["services"]))
+        self.assertEqual([5500, 8025, 8443, 8888], [item["port"] for item in structured["services"]])
+        self.assertEqual("https://127.0.0.1:8443", structured["services"][2]["url"])
+        self.assertRegex(structured["services"][0]["evidence_refs"][0], r"#L\d+$")
+
+    def test_nmap_parser_salvages_hosts_completed_before_truncated_xml(self) -> None:
+        capsule = self.registry.get("nmap")
+        raw = self.read_fixture("nmap").replace("</nmaprun>", "<truncated")
+        structured = parse_capsule_output(
+            capsule,
+            raw,
+            run_id="run_test",
+            artifact_name="nmap.xml",
+        )
+        self.assertEqual(1, len(structured["assets"]))
+        self.assertEqual(4, len(structured["services"]))
+
 
 if __name__ == "__main__":
     unittest.main()
-

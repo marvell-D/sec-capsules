@@ -3,7 +3,7 @@ from __future__ import annotations
 from string import Template
 from typing import Any
 
-from sec_capsules.core.arguments import resolve_arguments, template_value
+from sec_capsules.core.arguments import resolve_arguments, resolve_rate_limit, template_value
 from sec_capsules.core.models import Capsule, CommandPlan
 
 
@@ -45,9 +45,5 @@ def build_command_plan(
         action=str(profile.get("action", capsule.category)),
         arguments=resolved.values,
         argument_sources=resolved.sources,
-        requests_per_second=(
-            int(resolved.values["requests_per_second"])
-            if resolved.values.get("requests_per_second") is not None
-            else None
-        ),
+        rate_limit=resolve_rate_limit(capsule, resolved.values),
     )

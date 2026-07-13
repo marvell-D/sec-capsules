@@ -59,6 +59,22 @@ class ArgumentsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unique"):
             resolve_arguments(capsule, "safe", {"severity": ["high", "high"]})
 
+    def test_nmap_ports_compile_without_exposing_arbitrary_argv(self) -> None:
+        capsule = self.registry.get("nmap")
+        plan = build_command_plan(
+            capsule,
+            "127.0.0.1",
+            arguments={"ports": [5500, 8025, 8888], "packets_per_second": 25},
+        )
+        self.assertEqual("5500,8025,8888", plan.command[plan.command.index("-p") + 1])
+        self.assertEqual("packets_per_second", plan.rate_limit.unit)
+        self.assertEqual(25, plan.rate_limit.value)
+        self.assertNotIn("--script", plan.command)
+        with self.assertRaisesRegex(ValueError, "<= 65535"):
+            resolve_arguments(capsule, "safe", {"ports": [70000]})
+        with self.assertRaisesRegex(ValueError, "unique"):
+            resolve_arguments(capsule, "safe", {"ports": [80, 80]})
+
 
 if __name__ == "__main__":
     unittest.main()

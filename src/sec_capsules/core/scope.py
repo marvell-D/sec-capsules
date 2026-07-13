@@ -10,6 +10,8 @@ from urllib.parse import urlparse
 
 import yaml
 
+from sec_capsules.core.models import RateLimit
+
 
 METADATA_IPS = {
     ipaddress.ip_address("100.100.100.200"),
@@ -30,6 +32,7 @@ class ScopeDecision:
     normalized_target: str = ""
     resolved_addresses: list[str] = field(default_factory=list)
     approval: dict[str, object] = field(default_factory=dict)
+    rate_limit: dict[str, object] = field(default_factory=dict)
 
     def raise_if_denied(self) -> None:
         if not self.allowed:
@@ -43,6 +46,7 @@ class ScopeDecision:
             "normalized_target": self.normalized_target,
             "resolved_addresses": self.resolved_addresses,
             "approval": self.approval,
+            "rate_limit": self.rate_limit,
         }
 
 
@@ -51,21 +55,48 @@ class ScopePolicy:
         scope = raw.get("scope", raw)
         self.include = list(scope.get("include", []))
         self.exclude = list(scope.get("exclude", []))
+        raw_max_rates = scope.get("max_rates", {})
+        if not isinstance(raw_max_rates, dict):
+            raise ValueError("scope max_rates must be an object")
+        self.max_rates = {
+            str(unit): float(value)
+            for unit, value in raw_max_rates.items()
+        }
+        self.rate_limit_sources = {str(unit): f"max_rates.{unit}" for unit in raw_max_rates}
+        for unit, value in self.max_rates.items():
+            if value <= 0:
+                raise ValueError(f"scope rate maximum for {unit!r} must be greater than zero")
+
         if "max_requests_per_second" in scope:
-            self.max_requests_per_second = float(scope["max_requests_per_second"])
-            self.rate_limit_source = "max_requests_per_second"
+            self._set_compatible_rate(
+                "requests_per_second",
+                float(scope["max_requests_per_second"]),
+                "max_requests_per_second",
+            )
         elif "max_requests_per_minute" in scope:
-            self.max_requests_per_second = float(scope["max_requests_per_minute"]) / 60
-            self.rate_limit_source = "max_requests_per_minute (legacy, converted to per-second)"
-        else:
-            self.max_requests_per_second = 60.0
-            self.rate_limit_source = "default"
-        if self.max_requests_per_second <= 0:
-            raise ValueError("scope request-rate maximum must be greater than zero")
+            self._set_compatible_rate(
+                "requests_per_second",
+                float(scope["max_requests_per_minute"]) / 60,
+                "max_requests_per_minute (legacy, converted to per-second)",
+            )
+        elif "requests_per_second" not in self.max_rates:
+            self.max_rates["requests_per_second"] = 60.0
+            self.rate_limit_sources["requests_per_second"] = "default"
+
+        self.max_requests_per_second = self.max_rates["requests_per_second"]
+        self.rate_limit_source = self.rate_limit_sources["requests_per_second"]
         self.allow_private_ip = bool(scope.get("allow_private_ip", False))
         self.allow_active_scan = bool(scope.get("allow_active_scan", False))
         self.require_approval_for = set(scope.get("require_approval_for", []))
         self.resolver = resolver or resolve_host
+
+    def _set_compatible_rate(self, unit: str, value: float, source: str) -> None:
+        if value <= 0:
+            raise ValueError("scope request-rate maximum must be greater than zero")
+        if unit in self.max_rates and self.max_rates[unit] != value:
+            raise ValueError(f"scope defines conflicting maximums for {unit!r}")
+        self.max_rates[unit] = value
+        self.rate_limit_sources[unit] = source
 
     @classmethod
     def from_file(cls, path: str | Path) -> "ScopePolicy":
@@ -85,6 +116,7 @@ class ScopePolicy:
         target: str,
         action: str | None = None,
         active: bool = False,
+        requested_rate_limit: RateLimit | dict[str, object] | None = None,
         requested_requests_per_second: int | None = None,
         requires_approval: bool = False,
         approval: dict | None = None,
@@ -95,6 +127,7 @@ class ScopePolicy:
         host = parsed["host"]
         normalized_target = parsed["normalized_target"]
         resolved_addresses: list[str] = []
+        rate_limit_summary: dict[str, object] = {"requested": False, "allowed": True}
 
         if not host:
             reasons.append(f"target has no host: {target}")
@@ -102,14 +135,29 @@ class ScopePolicy:
         if active and not self.allow_active_scan:
             reasons.append("active scan is not allowed by scope policy")
 
-        if (
-            requested_requests_per_second is not None
-            and requested_requests_per_second > self.max_requests_per_second
-        ):
-            reasons.append(
-                f"requested rate {requested_requests_per_second} requests/second exceeds scope maximum "
-                f"{self.max_requests_per_second:g} requests/second from {self.rate_limit_source}"
-            )
+        requested_rate = normalize_rate_limit(
+            requested_rate_limit,
+            requested_requests_per_second=requested_requests_per_second,
+        )
+        if requested_rate is not None:
+            maximum = self.max_rates.get(requested_rate.unit)
+            source = self.rate_limit_sources.get(requested_rate.unit)
+            rate_limit_summary = {
+                "requested": True,
+                "argument": requested_rate.argument,
+                "value": requested_rate.value,
+                "unit": requested_rate.unit,
+                "maximum": maximum,
+                "source": source,
+                "allowed": maximum is not None and requested_rate.value <= maximum,
+            }
+            if maximum is None:
+                reasons.append(f"scope does not define a maximum for rate unit {requested_rate.unit!r}")
+            elif requested_rate.value > maximum:
+                reasons.append(
+                    f"requested rate {requested_rate.value:g} {requested_rate.unit} exceeds scope maximum "
+                    f"{maximum:g} {requested_rate.unit} from {source}"
+                )
 
         should_resolve = host and resolve_dns and (
             not self.include
@@ -158,7 +206,36 @@ class ScopePolicy:
             normalized_target=normalized_target,
             resolved_addresses=sorted(set(resolved_addresses)),
             approval=approval_summary,
+            rate_limit=rate_limit_summary,
         )
+
+
+def normalize_rate_limit(
+    value: RateLimit | dict[str, object] | None,
+    *,
+    requested_requests_per_second: int | None = None,
+) -> RateLimit | None:
+    if value is not None and requested_requests_per_second is not None:
+        raise ValueError("provide requested_rate_limit or requested_requests_per_second, not both")
+    if requested_requests_per_second is not None:
+        return RateLimit(
+            argument="requests_per_second",
+            value=requested_requests_per_second,
+            unit="requests_per_second",
+        )
+    if value is None or isinstance(value, RateLimit):
+        return value
+    if not isinstance(value, dict):
+        raise ValueError("requested_rate_limit must be an object")
+    try:
+        argument = str(value["argument"])
+        unit = str(value["unit"])
+        raw_number = value["value"]
+    except KeyError as exc:
+        raise ValueError(f"requested_rate_limit is missing {exc.args[0]!r}") from exc
+    if not isinstance(raw_number, (int, float)) or isinstance(raw_number, bool):
+        raise ValueError("requested_rate_limit value must be a number")
+    return RateLimit(argument=argument, value=raw_number, unit=unit)
 
 
 def parse_target(target: str) -> dict[str, str]:

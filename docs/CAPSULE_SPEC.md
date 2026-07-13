@@ -1,8 +1,8 @@
-# Capsule 格式规范（v0.1.2）
+# Capsule 格式规范（v0.2.0a1）
 
 Capsule 是 `sec-capsules` 的工具知识与调用契约。它同时回答四个问题：工具适合做什么、模型可以选择哪些语义参数、Runtime 如何把参数编译成 argv、工具输出如何转成统一对象。
 
-v0.1.2 的关键变化是把“固定 profile 命令”拆成：
+v0.1.2 把“固定 profile 命令”拆成以下契约；v0.2.0a1 又增加了显式速率单位与五类统一输出：
 
 ```text
 input_schema              模型能理解的参数知识和绝对边界
@@ -62,6 +62,7 @@ input_schema:
       minimum: 1
       maximum: 10
       x-agent-settable: true
+      x-rate-limit-unit: requests_per_second
 ```
 
 ### 3.1 支持的类型和约束
@@ -175,14 +176,22 @@ profile default < agent provided value < Schema/profile/Scope 拒绝边界
 
 ## 7. 速率单位
 
-内置工具参数统一命名为 `requests_per_second`，Scope 使用：
+速率参数必须通过 `x-rate-limit-unit` 声明物理含义。同一个 Capsule 最多声明一个速率参数。例如 HTTP 工具使用 `requests_per_second`，Nmap 使用 `packets_per_second`。Planner 生成通用结构：
+
+```json
+{"argument":"packets_per_second","value":20,"unit":"packets_per_second"}
+```
+
+Scope 使用按单位分组的上限：
 
 ```yaml
 scope:
-  max_requests_per_second: 10
+  max_rates:
+    requests_per_second: 10
+    packets_per_second: 30
 ```
 
-v0.1.1 的 `max_requests_per_minute` 暂时兼容，但会除以 60 后再与工具每秒速率比较。例如 60 RPM 等价于 1 request/second，不再错误地允许 60 requests/second。v0.2 计划移除旧字段。
+Scope 未配置某个单位时会 fail closed，而不是猜测换算关系。`max_requests_per_second` 和 `max_requests_per_minute` 暂时兼容；RPM 会除以 60 后比较。通用字段与旧字段对同一单位给出冲突值时直接报错。
 
 ## 8. Parser 与输出契约
 
@@ -193,7 +202,7 @@ def parse(raw_text: str, *, run_id: str, artifact_name: str) -> dict[str, object
     ...
 ```
 
-返回字典始终含 `services`、`endpoints`、`findings`、`evidence` 四个列表。Parser 不执行网络操作；应容忍坏行和截断尾行；每个可行动对象保留 `artifact://...#Lx` evidence ref。
+返回字典始终含 `assets`、`services`、`endpoints`、`findings`、`evidence` 五个列表。Parser 不执行网络操作；应容忍坏行和截断尾行；每个可行动对象保留 `artifact://...#Lx` evidence ref。某类无结果时返回空列表，不省略键。
 
 原始 stdout/stderr 属于 artifact；parser 结果属于 structured objects；模型默认消费 ObservationPacket。三层不能混在一起。
 
@@ -205,6 +214,8 @@ def parse(raw_text: str, *, run_id: str, artifact_name: str) -> dict[str, object
 - 验证每个 profile 的 defaults 与 allowed arguments。
 - 用默认值编译每个 profile。
 - 确保 argv 非空且没有残留 `$variable`。
+- 验证 metadata/runtime/artifact 声明和对应 fixture。
+- 动态导入 parser，离线解析 fixture，并检查五个顶层集合。
 
 新增 Capsule 还必须补参数正向/负向测试、parser fixture 测试，并在必要时增加 Scope 和本地 E2E。提交前运行：
 

@@ -17,7 +17,7 @@
 
 ## 2. 为什么使用 self-hosted runner
 
-安全工具 Runtime 的 E2E 需要 Docker、`httpx`、`katana`、`nuclei` 等外部二进制，并且只能在受控靶场执行。自托管 runner 使项目能够：
+安全工具 Runtime 的 E2E 需要 Docker、`httpx`、`katana`、`nuclei`、`nmap` 等外部二进制，并且只能在受控靶场执行。自托管 runner 使项目能够：
 
 - 管理外部工具版本与本机 Docker 环境。
 - 将 Juice Shop 容器只绑定到 `127.0.0.1`，避免暴露为公网靶场。
@@ -28,7 +28,7 @@
 
 ## 3. 当前部署事实
 
-截至 v0.1.2，项目使用的真实路径与服务如下：
+截至 v0.2.0a1，项目使用的真实路径与服务如下：
 
 ```text
 腾讯云服务器仓库： /home/ubuntu/git/sec-capsules
@@ -43,6 +43,7 @@ Runner 标签：       self-hosted, Linux, X64, tencent, sec-capsules
 httpx   v1.10.0
 katana  v1.6.1
 nuclei  v3.11.0
+nmap    7.94（由 Ubuntu apt 包提供）
 ```
 
 Nuclei 的默认模板初始化目录为 `/home/ubuntu/nuclei-templates`。日常 E2E 采用仓库内单个 `local-juice-shop.yaml` 模板，避免在 CI 中加载完整的默认模板集。
@@ -89,6 +90,8 @@ GitHub 事件（push / pull_request）
     -> 无论成功或失败，上传 runs-e2e/ artifact
 ```
 
+`crAPI Nmap E2E` 同样只能手动触发。它使用独立 Compose project，把端口绑定到 `127.0.0.1`，只扫描 Scope 明确批准的四个本机端口，结束后删除本次容器和 volume。crAPI 镜像较大，运行前应检查磁盘；不要使用 `docker system prune` 清理同机其他项目的数据。
+
 ## 5. 首次注册一台 runner
 
 以下命令是概念性步骤。注册 token 从 GitHub 仓库的 `Settings -> Actions -> Runners -> New self-hosted runner` 临时获取，勿复制到文档、终端历史共享记录或 git。
@@ -131,6 +134,7 @@ sudo systemctl restart actions.runner.marvell-D-sec-capsules.sec-capsules-tencen
 httpx -version
 katana -version
 nuclei -version
+nmap --version
 docker --version
 docker compose version
 
@@ -143,10 +147,11 @@ scripts/ci.sh
 
 ## 7. 运行和查看 workflow
 
-普通 CI 在 push 后自动运行。`Local E2E` 必须从 GitHub 仓库的 `Actions -> Local E2E -> Run workflow` 手动触发。成功的 job 会在 GitHub Actions 页面保存：
+普通 CI 在 push 后自动运行。`Local E2E` 与 `crAPI Nmap E2E` 必须分别从 GitHub Actions 页面手动触发。成功的 job 会保存：
 
 - `sec-capsules-dist`：普通 CI 的 wheel / source distribution。
 - `local-e2e-runs`：本机靶场运行的 `run.json`、structured result、Observation 与 artifact 元数据。
+- `crapi-nmap-e2e-runs`：Nmap/crAPI 真实执行的相同审计产物。
 
 artifact 是验证输出，不是长期日志数据库；保留天数由 GitHub 仓库配置决定。需要长期留存的审计结果应由后续版本接入专门的存储策略，而不是依赖 runner 工作目录。
 

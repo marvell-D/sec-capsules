@@ -9,7 +9,7 @@ class RegistryTest(unittest.TestCase):
     def test_loads_builtin_capsules(self) -> None:
         registry = CapsuleRegistry()
         capsule_ids = {capsule.id for capsule in registry.list()}
-        self.assertEqual({"httpx", "katana", "nuclei"}, capsule_ids)
+        self.assertEqual({"httpx", "katana", "nmap", "nuclei"}, capsule_ids)
 
     def test_usage_view_hides_full_command_details(self) -> None:
         registry = CapsuleRegistry()

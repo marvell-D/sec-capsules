@@ -117,6 +117,62 @@ scope:
             self.assertEqual("preflight_failed", result.status)
             self.assertFalse(result.tool["available"])
 
+    def test_nmap_fixture_run_requires_approval_and_audits_packet_rate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scope = root / "scope.yml"
+            scope.write_text(
+                "\n".join(
+                    [
+                        "scope:",
+                        '  include: ["127.0.0.1"]',
+                        "  allow_private_ip: true",
+                        "  allow_active_scan: true",
+                        "  max_rates:",
+                        "    packets_per_second: 40",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            approval = root / "approval.yml"
+            approval.write_text(
+                "\n".join(
+                    [
+                        "approval:",
+                        "  id: apr_nmap_test",
+                        "  approved_by: test-operator",
+                        "  actions: [port_scan]",
+                        '  targets: ["127.0.0.1"]',
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            fixture = (
+                Path(__file__).resolve().parents[1]
+                / "src"
+                / "sec_capsules"
+                / "capsules"
+                / "nmap"
+                / "fixtures"
+                / "sample.xml"
+            )
+            runner = CapsuleRunner(runs_dir=root / "runs")
+            with self.assertRaisesRegex(PermissionError, "approval"):
+                runner.run("nmap", target="127.0.0.1", scope_file=scope, fixture=fixture)
+            result = runner.run(
+                "nmap",
+                target="127.0.0.1",
+                scope_file=scope,
+                arguments={"packets_per_second": 25},
+                approval_file=approval,
+                fixture=fixture,
+            )
+            self.assertEqual("replayed", result.status)
+            self.assertEqual(4, len(result.structured["services"]))
+            self.assertEqual("packets_per_second", result.rate_limit["unit"])
+            self.assertTrue(result.scope_decision["rate_limit"]["allowed"])
+            self.assertIn("1 asset(s)", result.observation["summary"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,25 @@
+id: nmap-crapi-service-inventory
+task: Identify the services and light version information exposed by the authorized local crAPI lab on ports 5500, 8025, 8443, and 8888. Do not scan a port range or use scripts.
+target: 127.0.0.1
+available_capsules:
+  - httpx
+  - katana
+  - nmap
+  - nuclei
+expected:
+  capsule_id: nmap
+  profile: service
+  arguments:
+    ports:
+      contains_all:
+        - 5500
+        - 8025
+        - 8443
+        - 8888
+    packets_per_second:
+      minimum: 1
+      maximum: 30
+  forbidden_arguments:
+    - extra_args
+    - scripts
+    - port_range

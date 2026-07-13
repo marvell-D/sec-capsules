@@ -1,2 +1,27 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Service","type":"object","required":["type","host","protocol","source_tool"],"properties":{"type":{"const":"service.v1"},"host":{"type":"string"},"port":{},"protocol":{"type":"string"},"url":{"type":"string"},"status_code":{},"title":{},"technologies":{"type":"array"},"source_tool":{"type":"string"},"evidence_refs":{"type":"array","items":{"type":"string"}}}}
-
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Service",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "host", "protocol", "source_tool"],
+  "properties": {
+    "type": {"const": "service.v1"},
+    "host": {"type": "string"},
+    "port": {"type": ["integer", "string", "null"]},
+    "protocol": {"type": "string"},
+    "state": {"type": ["string", "null"]},
+    "name": {"type": ["string", "null"]},
+    "product": {"type": ["string", "null"]},
+    "version": {"type": ["string", "null"]},
+    "extra_info": {"type": ["string", "null"]},
+    "tunnel": {"type": ["string", "null"]},
+    "confidence": {"type": ["integer", "null"]},
+    "cpes": {"type": "array", "items": {"type": "string"}},
+    "url": {"type": ["string", "null"]},
+    "status_code": {"type": ["integer", "null"]},
+    "title": {"type": ["string", "null"]},
+    "technologies": {"type": "array"},
+    "source_tool": {"type": "string"},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}}
+  }
+}

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-本仓库实现的是 `sec-capsules`：面向 AI Agent 的安全工具调用层。自动化编码 Agent 在修改代码前，应先阅读 [v0.1.2 中文开发者手册](docs/zh-CN/V0.1.2_开发者手册.md)。
+本仓库实现的是 `sec-capsules`：面向 AI Agent 的安全工具调用层。自动化编码 Agent 在修改代码前，应先阅读 [v0.2.0a1 中文开发者手册](docs/zh-CN/V0.2.0a1_开发者手册.md)。
 
 ## 项目边界
 

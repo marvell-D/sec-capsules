@@ -13,6 +13,7 @@ def build_observation_packet(
     token_budget: int = 800,
     execution: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    assets = list(structured.get("assets", []))
     findings = list(structured.get("findings", []))
     services = list(structured.get("services", []))
     endpoints = list(structured.get("endpoints", []))
@@ -33,14 +34,20 @@ def build_observation_packet(
         "run_id": run_id,
         "tool": tool,
         "execution": execution or {},
-        "summary": summarize_counts(findings=findings, services=services, endpoints=endpoints),
+        "summary": summarize_counts(
+            assets=assets,
+            findings=findings,
+            services=services,
+            endpoints=endpoints,
+        ),
         "top_findings": top_findings,
+        "new_assets": assets[:8],
         "new_services": services[:8],
         "new_endpoints": [endpoint.get("url") for endpoint in endpoints[:12] if endpoint.get("url")],
         "recommended_next_actions": recommended_next_actions(findings, endpoints),
         "hidden_from_model": {
             "raw_output": True,
-            "secrets_redacted": True,
+            "secrets_redacted": False,
             "artifact_drilldown_required": True,
         },
     }
@@ -49,8 +56,16 @@ def build_observation_packet(
         packet["new_endpoints"].pop()
     while estimate_tokens(packet) > token_budget and packet["new_services"]:
         packet["new_services"].pop()
+    while estimate_tokens(packet) > token_budget and packet["new_assets"]:
+        packet["new_assets"].pop()
     while estimate_tokens(packet) > token_budget and packet["top_findings"]:
         packet["top_findings"].pop()
+
+    for optional_key in ("new_endpoints", "new_services", "new_assets", "top_findings"):
+        if estimate_tokens(packet) <= token_budget:
+            break
+        if not packet[optional_key]:
+            packet.pop(optional_key)
 
     packet["budget"] = {
         "requested_tokens": token_budget,
@@ -60,8 +75,16 @@ def build_observation_packet(
     return packet
 
 
-def summarize_counts(*, findings: list[dict], services: list[dict], endpoints: list[dict]) -> str:
+def summarize_counts(
+    *,
+    assets: list[dict],
+    findings: list[dict],
+    services: list[dict],
+    endpoints: list[dict],
+) -> str:
     parts = []
+    if assets:
+        parts.append(f"{len(assets)} asset(s)")
     if services:
         parts.append(f"{len(services)} service(s)")
     if endpoints:

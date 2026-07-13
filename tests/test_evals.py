@@ -49,6 +49,15 @@ class EvalHarnessTest(unittest.TestCase):
         self.assertEqual(20, result["iterations"])
         self.assertGreaterEqual(result["p95_ms"], 0)
 
+    def test_nmap_reference_candidate_passes_crapi_service_scenario(self) -> None:
+        scenario = load_data(self.root / "evals" / "scenarios" / "nmap-crapi-services.yml")
+        candidate = load_data(
+            self.root / "evals" / "candidates" / "reference" / "nmap-crapi-services.json"
+        )
+        result = grade_candidate(scenario, candidate)
+        self.assertTrue(result["passed"], result)
+        self.assertEqual("packets_per_second", result["plan"]["rate_limit"]["unit"])
+
 
 if __name__ == "__main__":
     unittest.main()

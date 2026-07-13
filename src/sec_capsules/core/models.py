@@ -40,6 +40,20 @@ class Capsule:
         return dict(profiles[name])
 
 
+@dataclass(frozen=True)
+class RateLimit:
+    argument: str
+    value: int | float
+    unit: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "argument": self.argument,
+            "value": self.value,
+            "unit": self.unit,
+        }
+
+
 @dataclass
 class CommandPlan:
     capsule_id: str
@@ -50,8 +64,14 @@ class CommandPlan:
     action: str = ""
     arguments: dict[str, Any] = field(default_factory=dict)
     argument_sources: dict[str, str] = field(default_factory=dict)
-    requests_per_second: int | None = None
+    rate_limit: RateLimit | None = None
     note: str = "Command is a plan. Execution requires scope and policy checks."
+
+    @property
+    def requests_per_second(self) -> int | float | None:
+        if self.rate_limit and self.rate_limit.unit == "requests_per_second":
+            return self.rate_limit.value
+        return None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -63,6 +83,7 @@ class CommandPlan:
             "action": self.action,
             "arguments": self.arguments,
             "argument_sources": self.argument_sources,
+            "rate_limit": self.rate_limit.to_dict() if self.rate_limit else None,
             "requests_per_second": self.requests_per_second,
             "note": self.note,
         }
@@ -106,6 +127,7 @@ class RunResult:
     status: str = "succeeded"
     arguments: dict[str, Any] = field(default_factory=dict)
     argument_sources: dict[str, str] = field(default_factory=dict)
+    rate_limit: dict[str, Any] | None = None
     target: str = ""
     normalized_target: str = ""
     scope_decision: dict[str, Any] = field(default_factory=dict)
@@ -130,6 +152,7 @@ class RunResult:
             "status": self.status,
             "arguments": self.arguments,
             "argument_sources": self.argument_sources,
+            "rate_limit": self.rate_limit,
             "target": self.target,
             "normalized_target": self.normalized_target,
             "scope_decision": self.scope_decision,

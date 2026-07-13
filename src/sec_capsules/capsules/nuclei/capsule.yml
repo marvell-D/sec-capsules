@@ -29,6 +29,7 @@ input_schema:
       minimum: 1
       maximum: 5
       x-agent-settable: true
+      x-rate-limit-unit: requests_per_second
     severity:
       type: array
       description: Finding severities enabled by the safe profile.
