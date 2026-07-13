@@ -1,0 +1,105 @@
+id: ffuf
+name: ffuf
+category: content_discovery
+summary: Bounded web content discovery that returns deduplicated endpoint observations.
+stage:
+  - endpoint_discovery
+  - web_recon
+risk_level: active_medium
+
+best_for:
+  - Discover common paths on a confirmed in-scope HTTP service.
+  - Convert high-cardinality FFUF output into compact endpoint observations.
+  - Preserve every raw result as an evidence artifact for later drill-down.
+
+avoid_when:
+  - The target is not explicitly authorized for active content discovery.
+  - The service is fragile or cannot tolerate the configured request rate.
+  - Authentication or state-changing behavior makes path probing unsafe.
+
+input_schema:
+  type: object
+  additionalProperties: false
+  properties:
+    match_status:
+      type: array
+      description: HTTP response status codes retained as endpoint candidates.
+      minItems: 1
+      maxItems: 10
+      uniqueItems: true
+      x-agent-settable: true
+      items:
+        type: integer
+        minimum: 100
+        maximum: 599
+    requests_per_second:
+      type: integer
+      description: Maximum HTTP requests per second for this invocation.
+      minimum: 1
+      maximum: 50
+      x-agent-settable: true
+      x-rate-limit-unit: requests_per_second
+
+profiles:
+  safe:
+    description: Time-bounded discovery with a packaged, read-only path wordlist.
+    active: true
+    action: content_discovery
+    requires_approval: true
+    defaults:
+      match_status:
+        - 200
+        - 204
+        - 301
+        - 302
+        - 307
+        - 401
+        - 403
+        - 405
+      requests_per_second: 10
+    allowed_arguments:
+      - match_status
+      - requests_per_second
+    command:
+      - ffuf
+      - -w
+      - $capsule_root/wordlists/web-small.txt
+      - -u
+      - $target/FUZZ
+      - -json
+      - -s
+      - -noninteractive
+      - -t
+      - "5"
+      - -rate
+      - $requests_per_second
+      - -timeout
+      - "5"
+      - -maxtime
+      - "60"
+      - -mc
+      - $match_status
+
+runtime:
+  binary: ffuf
+  version_command:
+    - ffuf
+    - -V
+  max_output_bytes: 4194304
+
+outputs:
+  structured:
+    - endpoint.v1
+    - evidence.v1
+
+artifacts:
+  primary: ffuf.jsonl
+  content_type: application/jsonl
+
+model_exposure:
+  default: observation_only
+  max_tokens: 800
+
+next_actions:
+  - inspect_interesting_endpoints
+  - continue_endpoint_triage

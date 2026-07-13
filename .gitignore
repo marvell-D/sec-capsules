@@ -8,5 +8,8 @@ build/
 dist/
 *.egg-info/
 runs/
+runs-crapi-ffuf-e2e/
+benchmark-runs/
+benchmark-reports/
 runs*/
 .DS_Store

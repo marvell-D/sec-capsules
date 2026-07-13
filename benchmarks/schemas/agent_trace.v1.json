@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sec-Capsules Agent Trace",
+  "type": "object",
+  "required": [
+    "type",
+    "trace_id",
+    "scenario_id",
+    "variant",
+    "provider",
+    "model",
+    "status",
+    "model_calls",
+    "tool_calls",
+    "final_answer",
+    "score",
+    "totals"
+  ],
+  "properties": {
+    "type": {"const": "agent_trace.v1"},
+    "trace_id": {"type": "string"},
+    "scenario_id": {"type": "string"},
+    "variant": {"enum": ["raw", "capsule"]},
+    "provider": {"type": "string"},
+    "model": {"type": "string"},
+    "started_at": {"type": "string"},
+    "finished_at": {"type": "string"},
+    "status": {"type": "string"},
+    "config": {"type": "object"},
+    "model_calls": {"type": "array"},
+    "tool_calls": {"type": "array"},
+    "final_answer": {"type": "object"},
+    "score": {"type": "object"},
+    "totals": {
+      "type": "object",
+      "required": [
+        "input_tokens",
+        "output_tokens",
+        "total_tokens",
+        "raw_tool_output_bytes",
+        "model_visible_tool_bytes",
+        "peak_context_bytes",
+        "tool_calls",
+        "tool_failures",
+        "policy_denials",
+        "wall_time_ms"
+      ]
+    }
+  }
+}

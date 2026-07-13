@@ -1,0 +1,39 @@
+id: crapi-recon-to-handoff
+task: >-
+  Perform authorized reconnaissance of the local crAPI lab. Confirm the host's exposed web
+  services, discover common HTTP paths on the main web service, and return a concise handoff
+  containing assets, services, endpoints, findings, and evidence references.
+targets:
+  host: "127.0.0.1"
+  web: "http://127.0.0.1:8888"
+available_capsules:
+  - nmap
+  - ffuf
+scope_file: crapi-scope.yml
+approval_file: crapi-approval.yml
+fixtures:
+  nmap: ../../src/sec_capsules/capsules/nmap/fixtures/sample.xml
+  ffuf: ../../src/sec_capsules/capsules/ffuf/fixtures/sample.jsonl
+limits:
+  max_turns: 8
+  model_max_tokens: 768
+  observation_token_budget: 800
+  tool_timeout_seconds: 120
+  max_raw_output_bytes: 4194304
+milestones:
+  - id: asset-confirmed
+    type: asset_value_contains
+    expected: "127.0.0.1"
+  - id: web-services-confirmed
+    type: service_ports_contains
+    expected:
+      - 8443
+      - 8888
+  - id: endpoint-handoff
+    type: endpoint_urls_contains
+    expected:
+      - "http://127.0.0.1:8888/api"
+      - "http://127.0.0.1:8888/openapi.json"
+  - id: evidence-preserved
+    type: evidence_refs_min
+    expected: 2

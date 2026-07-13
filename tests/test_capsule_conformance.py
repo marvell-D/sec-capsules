@@ -39,9 +39,9 @@ class CapsuleConformanceTest(unittest.TestCase):
                     run_id="run_conformance",
                     artifact_name=artifact_name,
                 )
-                self.assertEqual(
-                    {"assets", "services", "endpoints", "findings", "evidence"},
-                    set(structured),
+                self.assertTrue(
+                    {"assets", "services", "endpoints", "findings", "evidence"}
+                    <= set(structured)
                 )
                 for collection in ("assets", "services", "endpoints", "findings", "evidence"):
                     self.assertIsInstance(structured.get(collection, []), list)

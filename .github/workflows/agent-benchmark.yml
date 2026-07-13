@@ -1,0 +1,46 @@
+name: Agent Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Replay is deterministic at the tool layer; live starts local crAPI.
+        required: true
+        default: replay
+        type: choice
+        options:
+          - replay
+          - live
+      repeats:
+        description: Number of paired raw/capsule trials.
+        required: true
+        default: "3"
+        type: string
+      model:
+        description: Optional exact SiliconFlow model id; blank selects the preferred available model.
+        required: false
+        default: ""
+        type: string
+
+jobs:
+  benchmark:
+    runs-on: self-hosted
+    timeout-minutes: 60
+    env:
+      SILICONFLOW_API_KEY: ${{ secrets.SILICONFLOW_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install project
+        run: python -m pip install -e .
+      - name: Run paired benchmark
+        run: scripts/benchmark-agent.sh "${{ inputs.mode }}" "${{ inputs.repeats }}" "${{ inputs.model }}"
+      - name: Upload traces and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-benchmark-${{ inputs.mode }}
+          path: benchmark-reports/${{ inputs.mode }}/
+          if-no-files-found: warn

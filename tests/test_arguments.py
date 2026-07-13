@@ -75,6 +75,23 @@ class ArgumentsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unique"):
             resolve_arguments(capsule, "safe", {"ports": [80, 80]})
 
+    def test_ffuf_compiles_only_bounded_semantic_arguments(self) -> None:
+        capsule = self.registry.get("ffuf")
+        plan = build_command_plan(
+            capsule,
+            "http://127.0.0.1:8888",
+            arguments={"match_status": [200, 401, 403], "requests_per_second": 5},
+        )
+        self.assertEqual("200,401,403", plan.command[plan.command.index("-mc") + 1])
+        self.assertEqual("5", plan.command[plan.command.index("-rate") + 1])
+        self.assertEqual("requests_per_second", plan.rate_limit.unit)
+        self.assertTrue(plan.requires_approval)
+        self.assertIn("wordlists/web-small.txt", plan.command[plan.command.index("-w") + 1])
+        with self.assertRaisesRegex(ValueError, "unknown arguments"):
+            resolve_arguments(capsule, "safe", {"extra_args": "-recursion"})
+        with self.assertRaisesRegex(ValueError, "<= 50"):
+            resolve_arguments(capsule, "safe", {"requests_per_second": 100})
+
 
 if __name__ == "__main__":
     unittest.main()

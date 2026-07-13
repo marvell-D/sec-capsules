@@ -76,6 +76,21 @@ class ParserTest(unittest.TestCase):
         self.assertEqual(1, len(structured["assets"]))
         self.assertEqual(4, len(structured["services"]))
 
+    def test_ffuf_parser_deduplicates_and_reports_partial_input(self) -> None:
+        capsule = self.registry.get("ffuf")
+        structured = parse_capsule_output(
+            capsule,
+            self.read_fixture("ffuf"),
+            run_id="run_test",
+            artifact_name="ffuf.jsonl",
+        )
+        self.assertEqual(15, len(structured["endpoints"]))
+        self.assertEqual(1, structured["parse_diagnostics"]["duplicate_records"])
+        self.assertEqual(2, structured["parse_diagnostics"]["invalid_records"])
+        self.assertTrue(structured["parse_diagnostics"]["partial"])
+        self.assertEqual(7855, structured["endpoints"][9]["content_length"])
+        self.assertTrue(structured["endpoints"][0]["evidence_refs"][0].endswith("#L1"))
+
 
 if __name__ == "__main__":
     unittest.main()

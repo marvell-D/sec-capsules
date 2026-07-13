@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any
 
 from sec_capsules.core.models import estimate_tokens
@@ -17,6 +18,12 @@ def build_observation_packet(
     findings = list(structured.get("findings", []))
     services = list(structured.get("services", []))
     endpoints = list(structured.get("endpoints", []))
+    collections = {
+        "assets": assets,
+        "services": services,
+        "endpoints": endpoints,
+        "findings": findings,
+    }
 
     top_findings = [
         {
@@ -40,6 +47,11 @@ def build_observation_packet(
             services=services,
             endpoints=endpoints,
         ),
+        "result_counts": {
+            name: {"total": len(items), "retained": 0, "omitted": len(items)}
+            for name, items in collections.items()
+            if items
+        },
         "top_findings": top_findings,
         "new_assets": assets[:8],
         "new_services": services[:8],
@@ -51,28 +63,71 @@ def build_observation_packet(
             "artifact_drilldown_required": True,
         },
     }
+    parse_diagnostics = structured.get("parse_diagnostics")
+    if isinstance(parse_diagnostics, dict):
+        packet["parse_diagnostics"] = dict(parse_diagnostics)
 
-    while estimate_tokens(packet) > token_budget and packet["new_endpoints"]:
+    _refresh_result_counts(packet)
+    while _estimated_with_budget(packet, token_budget) > token_budget and packet["new_endpoints"]:
         packet["new_endpoints"].pop()
-    while estimate_tokens(packet) > token_budget and packet["new_services"]:
+        _refresh_result_counts(packet)
+    while _estimated_with_budget(packet, token_budget) > token_budget and packet["new_services"]:
         packet["new_services"].pop()
-    while estimate_tokens(packet) > token_budget and packet["new_assets"]:
+        _refresh_result_counts(packet)
+    while _estimated_with_budget(packet, token_budget) > token_budget and packet["new_assets"]:
         packet["new_assets"].pop()
-    while estimate_tokens(packet) > token_budget and packet["top_findings"]:
+        _refresh_result_counts(packet)
+    while _estimated_with_budget(packet, token_budget) > token_budget and packet["top_findings"]:
         packet["top_findings"].pop()
+        _refresh_result_counts(packet)
 
     for optional_key in ("new_endpoints", "new_services", "new_assets", "top_findings"):
-        if estimate_tokens(packet) <= token_budget:
+        if _estimated_with_budget(packet, token_budget) <= token_budget:
             break
         if not packet[optional_key]:
             packet.pop(optional_key)
 
+    for optional_key in ("parse_diagnostics", "recommended_next_actions", "execution"):
+        if _estimated_with_budget(packet, token_budget) <= token_budget:
+            break
+        packet.pop(optional_key, None)
+
+    if _estimated_with_budget(packet, token_budget) > token_budget:
+        packet["summary"] = "Structured results summarized; raw artifact retained."
+    if _estimated_with_budget(packet, token_budget) > token_budget:
+        packet["hidden_from_model"].pop("artifact_drilldown_required", None)
+
+    _refresh_result_counts(packet)
+    estimated = _estimated_with_budget(packet, token_budget)
     packet["budget"] = {
         "requested_tokens": token_budget,
-        "estimated_tokens": estimate_tokens(packet),
-        "within_budget": estimate_tokens(packet) <= token_budget,
+        "estimated_tokens": estimated,
+        "within_budget": estimated <= token_budget,
     }
     return packet
+
+
+def _refresh_result_counts(packet: dict[str, Any]) -> None:
+    visible_keys = {
+        "assets": "new_assets",
+        "services": "new_services",
+        "endpoints": "new_endpoints",
+        "findings": "top_findings",
+    }
+    for name, counts in packet.get("result_counts", {}).items():
+        retained = len(packet.get(visible_keys[name], []))
+        counts["retained"] = retained
+        counts["omitted"] = max(0, counts["total"] - retained)
+
+
+def _estimated_with_budget(packet: dict[str, Any], token_budget: int) -> int:
+    candidate = deepcopy(packet)
+    candidate["budget"] = {
+        "requested_tokens": token_budget,
+        "estimated_tokens": token_budget,
+        "within_budget": True,
+    }
+    return estimate_tokens(candidate)
 
 
 def summarize_counts(

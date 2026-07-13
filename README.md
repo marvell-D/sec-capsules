@@ -16,7 +16,7 @@
   -> token 预算化 ObservationPacket
 ```
 
-## 当前版本：v0.2.0a1
+## 当前版本：v0.2.0a2
 
 当前的 WebSec Capsule Pack 包含：
 
@@ -24,10 +24,11 @@
 - `katana`：受限深度的端点收集。
 - `nuclei`：模板化基线扫描；另有仅用于本机 Juice Shop E2E 的 `local_lab` profile。
 - `nmap`：明确端口集合的 TCP connect/service 探测；不开放原始 argv、端口范围或 NSE 脚本。
+- `ffuf`：使用内置小字典的限时内容发现；只开放状态码集合与请求速率。
 
-v0.2.0a1 是 v0.2 的第一个预发布切片：新增 Nmap XML Capsule，把统一输出扩展到 asset/service，并把速率限制抽象为带单位的 `RateLimit`。本版还增加 SiliconFlow 两阶段模型评测 adapter 和仅手动触发的本机 crAPI Nmap E2E。FFUF、高基数压缩和 v0.2 的完整导出目标仍未完成，因此不宣称 v0.2 已完成。
+v0.2.0a2 新增 FFUF JSONL Capsule、去重与 parser 诊断，ObservationPacket 会报告总数、保留数和省略数。顶层 `benchmarks/` 提供独立的 Reference Agent A/B 测试层，可在同一模型和场景下对比原始 argv/stdout 集成与 Capsule 集成。该测试层不进入 Python 发布包，也不是产品 Agent 框架。
 
-当前实现的逐层讲解见 [v0.2.0a1 中文开发者手册](docs/zh-CN/V0.2.0a1_开发者手册.md)。参数协议的形成过程见 [v0.1.2 手册](docs/zh-CN/V0.1.2_开发者手册.md)。
+当前实现的逐层讲解见 [v0.2.0a2 Agent 基准开发者手册](docs/zh-CN/V0.2.0a2_Agent基准开发者手册.md)。参数协议的形成过程见 [v0.1.2 手册](docs/zh-CN/V0.1.2_开发者手册.md)。
 
 ## 快速开始
 
@@ -104,6 +105,14 @@ scripts/e2e-crapi-nmap.sh
 
 该脚本会把官方 crAPI compose 固定到已审阅的源码提交、绑定 `127.0.0.1`、执行经审批的四端口 service profile，并在结束时删除本次容器和 volume。它需要 Docker Compose、Nmap 和较大的临时镜像空间，也只允许手动触发。
 
+FFUF 的真实执行门槛使用同一锁定版本的 crAPI：
+
+```bash
+scripts/e2e-crapi-ffuf.sh
+```
+
+它检查 FFUF 预检、Scope/approval、非空原始 artifact、parser diagnostics 和 endpoint 计数一致性。
+
 ## 接口
 
 - CLI：适合本机调试、脚本与 CI。
@@ -149,9 +158,21 @@ python -m sec_capsules.evals.cli siliconflow-grade \
 
 adapter 先用 brief 卡选工具，再只披露被选中工具的 usage 卡生成参数，最后由本地 Harness 评分；模型不能提交原始命令。
 
+## Agent A/B 基准
+
+Agent benchmark 使用同一个薄 Reference Agent，只替换工具 Adapter。`raw` 由模型生成受限 argv 并看到原始 stdout；`capsule` 通过 brief/usage 渐进披露、语义参数和 ObservationPacket 完成同一任务。
+
+```bash
+export SILICONFLOW_API_KEY='replace-with-a-rotated-secret'
+scripts/benchmark-agent.sh replay 3
+```
+
+`replay` 向两组提供同一份工具 artifact，用于重复性较高的模型对比。`live` 只能在自有 runner 上手动执行，会启动锁定提交的本机 crAPI，并要求 Docker、Nmap 和 FFUF。报告使用 provider 返回的 token usage，同时单独报告原始工具字节、模型可见字节、峰值上下文、安全拒绝和确定性 milestone 得分。
+
 ## 文档导航
 
 - [v0.2.0a1 中文开发者手册](docs/zh-CN/V0.2.0a1_开发者手册.md)
+- [v0.2.0a2 Agent 基准开发者手册](docs/zh-CN/V0.2.0a2_Agent基准开发者手册.md)
 - [v0.1.2 中文开发者手册](docs/zh-CN/V0.1.2_开发者手册.md)
 - [v0.1.1 中文开发者手册](docs/zh-CN/V0.1.1_开发者手册.md)
 - [Capsule 格式规范](docs/CAPSULE_SPEC.md)

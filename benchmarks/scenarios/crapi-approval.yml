@@ -1,0 +1,9 @@
+approval:
+  id: apr_crapi_local_benchmark
+  approved_by: local-benchmark-operator
+  actions:
+    - port_scan
+    - service_version_scan
+    - content_discovery
+  targets:
+    - "127.0.0.1"
